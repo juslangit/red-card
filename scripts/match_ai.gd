@@ -49,6 +49,10 @@ var _lurk_timer := 0.0
 ## Counts, for the checks and for tuning: what the football actually looked like.
 var stats := {"passes": 0, "shots": 0, "tackles": 0, "fouls": 0, "dribble_losses": 0, "dives": 0, "handballs": 0, "holds": 0, "saves": 0, "crosses": 0, "clears": 0, "dribble_choices": 0, "zone": [0, 0, 0, 0, 0], "run_passes": 0}
 
+## Players a scenario is steering. The AI leaves their movement alone, and a held
+## carrier only dribbles where he is sent — no passing, no shooting — until released.
+var held := {}  # Footballer -> true
+
 ## Set pieces.
 var set_piece: Dictionary = {}
 var set_piece_ready := false
@@ -175,6 +179,12 @@ func _update_control() -> void:
 	_headers()
 
 
+## Gives a player the ball at his feet, for a scenario.
+func give_ball(p: Footballer) -> void:
+	ball().place(p.global_position + p.heading * 0.6)
+	_take(p)
+
+
 func _take(p: Footballer) -> void:
 	carrier = p
 	var changed := possession != p.team.index
@@ -285,7 +295,7 @@ func _position_everyone(_delta: float) -> void:
 	for p: Footballer in players():
 		if not p.can_move() or p == carrier or p.is_keeper():
 			continue
-		if _pending.get("player") == p:
+		if _pending.get("player") == p or held.has(p):
 			continue
 		var target := _shape_target(p)
 		var hurry := 0.55
@@ -395,6 +405,8 @@ func _carrier_logic(delta: float) -> void:
 	b.global_position.y = PitchSpec.BALL_RADIUS
 	b.on_ground = true
 
+	if held.has(carrier):
+		return
 	_decide_in -= delta
 	var goal := spec().goal_centre(carrier.team.attack)
 	var pressure := _pressure(carrier)
@@ -661,7 +673,7 @@ func _defend(delta: float) -> void:
 	if target == null or b.carrier != null:
 		return
 	var defenders := opponents(target.team)
-	defenders = defenders.filter(func(q): return q.is_free() and not q.is_keeper())
+	defenders = defenders.filter(func(q): return q.is_free() and not q.is_keeper() and not held.has(q))
 	defenders.sort_custom(func(a, c): return a.global_position.distance_to(target.global_position) < c.global_position.distance_to(target.global_position))
 	if defenders.is_empty():
 		return
@@ -726,7 +738,17 @@ func _tackle(defender: Footballer, attacker: Footballer, sliding: bool) -> void:
 	# Otherwise the attacker rides it and carries on.
 
 
-func _foul(defender: Footballer, attacker: Footballer, sliding: bool, behind: bool) -> void:
+## A foul decided by a scenario rather than by the dice: who, how, how bad, and whether
+## the fouled player stays on his feet.
+func force_foul(defender: Footballer, attacker: Footballer, severity: Laws.Severity, sliding: bool,
+		behind: bool, stays_up: bool) -> void:
+	_tackle_cooldown[defender] = 3.0
+	defender.one_shot("tackle", 0.7 if sliding else 0.45)
+	_foul(defender, attacker, sliding, behind, severity, 1 if stays_up else 0)
+
+
+func _foul(defender: Footballer, attacker: Footballer, sliding: bool, behind: bool,
+		forced_severity := -1, forced_stays_up := -1) -> void:
 	stats.fouls += 1
 	var severity := Laws.Severity.CARELESS
 	var r := _rng.randf()
@@ -735,11 +757,17 @@ func _foul(defender: Footballer, attacker: Footballer, sliding: bool, behind: bo
 		severity = Laws.Severity.EXCESSIVE
 	elif r < 0.15 + 0.3 * rough:
 		severity = Laws.Severity.RECKLESS
+	if forced_severity >= 0:
+		severity = forced_severity as Laws.Severity
 	var push: Vector3 = (attacker.global_position - defender.global_position).normalized()
 	# Most fouls put the man down. A careless trip on a strong player sometimes does not,
 	# and he stumbles on with the ball — the classic moment for advantage.
 	var stays_up := severity == Laws.Severity.CARELESS and _rng.randf() < 0.3 + attacker.skill * 0.2
+	if forced_stays_up >= 0:
+		stays_up = forced_stays_up == 1
 	var hurt := severity == Laws.Severity.EXCESSIVE or severity == Laws.Severity.RECKLESS and _rng.randf() < 0.3
+	if forced_severity >= 0:
+		hurt = false
 	m.laws.foul(defender, attacker, &"tackle", severity, attacker.global_position, {"sliding": sliding, "from_behind": behind})
 	if stays_up:
 		attacker.velocity *= 0.5
@@ -950,6 +978,9 @@ func _mischief(delta: float) -> void:
 			if b.velocity.dot(-rel) <= 0.0:
 				continue
 			var arms_out := _rng.randf() < HANDBALL_ARMS_CHANCE * lerpf(0.5, 1.5, q.aggression)
+			if has_meta("force_arms"):
+				arms_out = get_meta("force_arms") == q
+				remove_meta("force_arms")
 			if arms_out:
 				q.arms.set_right(Vector3(-1.0, 0.1, 0.4), Vector3.ZERO, 1.0)
 				q.arms.set_left(Vector3(1.0, 0.1, 0.4), Vector3.ZERO, 1.0)

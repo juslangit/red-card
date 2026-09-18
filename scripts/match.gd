@@ -60,6 +60,10 @@ var kick_off_team: Team
 ## Flags raised by assistants and not yet dealt with: {assistant, incident or null, kind}.
 var flag: Dictionary = {}
 
+## In training and scenarios every restart waits for the whistle, so there is always
+## time to show a card before play goes on.
+var whistle_every_restart := false
+
 var sound: SoundBank
 var paused := false
 var headless := false
@@ -439,7 +443,7 @@ func award(type: StringName, to: Team) -> void:
 				p.calm()
 	_react_to(linked)
 	restart = {"type": type, "team": to, "spot": spot}
-	restart_needs_whistle = type in [&"penalty"] or restart.get("carded", false)
+	restart_needs_whistle = type in [&"penalty"] or restart.get("carded", false) or whistle_every_restart
 	ai.begin_set_piece(restart)
 	_set_phase(Phase.SET_PIECE)
 	decision_made.emit(_restart_words(type, to), true)
@@ -558,7 +562,7 @@ func _award_flag_restart(offender: Footballer, to: Team, inc: Incident) -> void:
 		inc.restart_team = to
 		inc.resolved = true
 	restart = {"type": &"indirect_free_kick", "team": to, "spot": spec.clamp_to_field(at, 1.0)}
-	restart_needs_whistle = false
+	restart_needs_whistle = whistle_every_restart
 	for ar in assistants:
 		ar.lower()
 	flag = {}
@@ -608,6 +612,16 @@ func _take_restart() -> void:
 		if p.injured:
 			p.get_up()
 	venue.stands.set_excitement(0.0, 0.0)
+
+
+## Straight into open play with everybody where a scenario put them — no kick-off.
+func begin_open_play() -> void:
+	ai.set_piece = {}
+	restart = {}
+	restart_needs_whistle = false
+	ball.held = false
+	ball.in_play = true
+	_set_phase(Phase.LIVE)
 
 
 func _line_up_for_kick_off(team: Team) -> void:

@@ -53,6 +53,8 @@ var holding_watch := false
 var enabled := true
 ## For the checks: a scripted referee ignores the keyboard.
 var scripted := false
+## For the looks: hold the watch up without a key.
+var force_watch := false
 
 var _whistle_down := -1.0
 var _bob_phase := 0.0
@@ -63,6 +65,7 @@ var _card_material: StandardMaterial3D
 var _watch_label: Label3D
 var _signal_left := 0.0
 var _body_yaw := 0.0
+var _body_turning := false
 var _pad_look := Vector2.ZERO
 
 
@@ -106,10 +109,10 @@ func _ready() -> void:
 	kit.keeper_shirt = kit.shirt
 	body = Footballer.new()
 	body.setup(kit, 0, Footballer.Role.MF, "Referee")
+	body.official = true
 	add_child(body)
 	for label in body.find_children("*", "Label3D", true, false):
 		label.visible = false
-	body.arms.hide_head = true
 	# The body must not cast its shadow into the camera, or the player sees a shadow of a
 	# man with no head.
 	for mesh in body.find_children("*", "MeshInstance3D", true, false):
@@ -221,7 +224,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if m == null:
+	if m == null or (not enabled and m.paused):
 		return
 	if _whistle_down >= 0.0:
 		_whistle_down += delta
@@ -230,7 +233,7 @@ func _physics_process(delta: float) -> void:
 		yaw -= _pad_look.x * 2.6 * delta
 		pitch -= _pad_look.y * 2.0 * delta * (-1.0 if settings.invert_y else 1.0)
 		pitch = clampf(pitch, deg_to_rad(-82.0), deg_to_rad(70.0))
-	holding_watch = enabled and not scripted and Input.is_action_pressed(&"rc_watch")
+	holding_watch = force_watch or (enabled and not scripted and Input.is_action_pressed(&"rc_watch"))
 	_move(delta)
 	_look(delta)
 	_signals(delta)
@@ -283,8 +286,14 @@ func _look(delta: float) -> void:
 	# way from it when you are standing — so you can look over your shoulder.
 	var speed := Vector2(velocity.x, velocity.z).length()
 	var diff := wrapf(yaw - _body_yaw, -PI, PI)
-	if speed > 0.5 or absf(diff) > deg_to_rad(65.0):
+	# Once the head has turned far enough to pull the body round, the body comes all the
+	# way round — it does not stop at the edge of the dead zone and leave you facing sideways.
+	if absf(diff) > deg_to_rad(65.0):
+		_body_turning = true
+	if speed > 0.5 or _body_turning:
 		_body_yaw += diff * minf(delta * 8.0, 1.0)
+		if absf(diff) < deg_to_rad(4.0):
+			_body_turning = false
 	var facing := Vector3(-sin(_body_yaw), 0, -cos(_body_yaw))
 	body.puppet(Vector3(velocity.x, 0, velocity.z), facing)
 
@@ -301,9 +310,15 @@ func _look(delta: float) -> void:
 	var eye := Vector3(bob_x, EYE_HEIGHT - bob_y, 0)
 	# Look-down: the eye moves forward a little over the chest, as a real head does when
 	# it tips forward, so the view down clears the collarbones.
-	eye += Vector3(-sin(yaw), 0, -cos(yaw)).rotated(Vector3.UP, 0) * 0.12 * clampf(-pitch / 1.2, 0.0, 1.0)
+	# Eyes sit in front of the neck, and a head tipping down to look at the body moves them
+	# further forward and a little down. Without this the camera sat inside the chest and
+	# looking down showed the inside of the shirt — which, being back faces, is nothing.
+	var down := clampf(-pitch / 1.3, 0.0, 1.0)
+	eye += _forward() * (0.13 + 0.15 * down) - Vector3(0, 0.04 * down, 0)
 	camera.global_position = global_position + eye + shake
 	camera.global_rotation = Vector3(pitch, yaw, sin(_bob_phase) * 0.006 * bob_amount)
+	# Cut the head out of our own view (see kit.gdshader).
+	body.set_hidden_sphere(body.head_position(), 0.15)
 
 
 ## Players and the referee sharing the same grass: somebody running into you knocks you
@@ -445,7 +460,12 @@ func card(colour: StringName) -> void:
 	_card_material.albedo_color = c
 	_card_material.emission = c
 	_card_node.visible = true
-	body.arms.set_right(Vector3.UP, Vector3.ZERO, 1.0)
+	# Held up and out towards the player being booked, high enough for everyone to see
+	# and still in the corner of your own eye.
+	var toward := (who.global_position - global_position)
+	toward.y = 0.0
+	var aim := (toward.normalized() * 1.1 + Vector3.UP).normalized()
+	body.arms.set_right(body.arms.to_model(aim), Vector3.ZERO, 1.0)
 	_signal_left = 2.2
 	m.show_card(who, colour)
 

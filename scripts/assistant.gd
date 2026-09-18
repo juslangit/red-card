@@ -56,6 +56,7 @@ func _ready() -> void:
 	_official_team.keeper_shirt = _official_team.shirt
 	body = Footballer.new()
 	body.setup(_official_team, 0, Footballer.Role.MF, "Assistant")
+	body.official = true
 	add_child(body)
 	body.pace = 7.0
 	body.global_position = Vector3(side * m.spec.half_length() * 0.4, 0, _line_z())

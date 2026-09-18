@@ -18,6 +18,17 @@ instance uniform vec4 shirt_color : source_color = vec4(0.73, 0.24, 0.24, 1.0);
 instance uniform vec4 shorts_color : source_color = vec4(0.23, 0.24, 0.27, 1.0);
 instance uniform float skin_tone = 1.0;
 instance uniform float highlight = 0.0;
+// For the referee's own body: everything within this radius of this point is cut away,
+// except in the shadow pass. The camera sits where the eyes are, so this removes the head
+// and neck from the player's view and keeps them in the shadow on the grass — which is
+// what having a head looks like from inside it.
+instance uniform vec4 hide_sphere = vec4(0.0, -1000.0, 0.0, 0.0);
+
+varying vec3 world_pos;
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
 
 vec3 rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -29,6 +40,9 @@ vec3 rgb2hsv(vec3 c) {
 }
 
 void fragment() {
+	if (!IN_SHADOW_PASS && distance(world_pos, hide_sphere.xyz) < hide_sphere.w) {
+		discard;
+	}
 	vec3 src = texture(albedo_tex, UV).rgb;
 	vec3 hsv = rgb2hsv(src);
 	vec3 col = src;

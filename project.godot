@@ -34,3 +34,7 @@ common/physics_ticks_per_second=60
 textures/vram_compression/import_etc2_astc=true
 scaling_3d/scale=0.8
 anti_aliasing/quality/screen_space_aa=1
+
+[autoload]
+
+Game="*res://scripts/game.gd"

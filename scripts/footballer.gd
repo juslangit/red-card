@@ -21,6 +21,7 @@ const HEIGHT := 1.80
 ## name, so swapping a clip is a change to this table and nothing else.
 const CLIPS := {
 	"idle": ["fb_idle", "ready", "idle"],
+	"stand_still": ["fb_stand", "idle"],
 	"walk": ["walk"],
 	"run": ["run"],
 	"backpedal": ["backpedal"],
@@ -82,6 +83,8 @@ var _state_left := 0.0
 var _fall_dir := Vector3.FORWARD
 var _fall_amount := 0.0
 var injured := false
+## Officials stand like officials — relaxed, arms down — not in a player's ready stance.
+var official := false
 
 var _model: Node3D
 var _pivot: Node3D
@@ -162,6 +165,18 @@ func _add_numbers() -> void:
 	_number_back.position = Vector3(0, -2.0, -13.5)
 	_number_back.rotation.y = PI
 	attach.add_child(_number_back)
+
+
+## Where the head is right now, in the world.
+func head_position() -> Vector3:
+	var bone := skeleton.find_bone("Head")
+	if bone < 0:
+		return global_position + Vector3(0, 1.62, 0)
+	return skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin + Vector3(0, 0.06, 0)
+
+
+func set_hidden_sphere(centre: Vector3, radius_m: float) -> void:
+	_mesh.set_instance_shader_parameter("hide_sphere", Vector4(centre.x, centre.y, centre.z, radius_m))
 
 
 func radius() -> float:
@@ -274,6 +289,30 @@ func leave(exit_point: Vector3) -> void:
 	arms.release()
 
 
+## Puts the body where a replay says it was: position, facing, a speed for the legs, and
+## whether it was on the floor.
+func replay_pose(pos: Vector3, facing: Vector3, speed_vec: Vector3, fallen: bool) -> void:
+	global_position = pos
+	velocity = speed_vec
+	var flat := Vector3(facing.x, 0.0, facing.z)
+	if flat.length() > 0.01:
+		heading = flat.normalized()
+		transform.basis = Basis.looking_at(heading, Vector3.UP)
+	if fallen:
+		_fall_dir = heading
+		_fall_amount = 1.0
+		_apply_fall()
+		play("lie", 0.1)
+	else:
+		if _fall_amount > 0.0:
+			_fall_amount = 0.0
+			_apply_fall()
+		var st := state
+		state = State.PLAY
+		_animate()
+		state = st
+
+
 ## Drives the body from outside, for the referee: the player's own input decides the
 ## velocity and the facing, and the body only has to look like it is doing that.
 func puppet(new_velocity: Vector3, facing: Vector3) -> void:
@@ -382,7 +421,10 @@ func _animate() -> void:
 				return
 	var speed := Vector2(velocity.x, velocity.z).length()
 	if speed < 0.35:
-		play("keeper_ready" if is_keeper() and state == State.PLAY else "idle", 0.25)
+		if official:
+			play("stand_still", 0.25)
+		else:
+			play("keeper_ready" if is_keeper() and state == State.PLAY else "idle", 0.25)
 		return
 	var along := heading.dot(velocity / speed)
 	if along < -0.45:

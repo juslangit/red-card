@@ -1,0 +1,31 @@
+# Godot 4+ engine files
+.godot/
+/android/
+
+# Exported builds
+/build/
+*.dmg
+*.zip
+
+# Secrets
+.env
+
+# macOS
+.DS_Store
+
+# Screenshots the dev scenes write
+dev/shots/
+
+# Meshy intermediates for the Blender clip pipeline (tools/meshy/rig_clips.py). Only the
+# finished footballer_animated.glb is kept; the rest came from Referee For Fun's
+# assets/meshy/player_red and can be copied from there again.
+assets/characters/footballer/*
+!assets/characters/footballer/footballer_animated.glb
+!assets/characters/footballer/footballer_animated.glb.import
+
+# Raw downloads from `sfx`. The cut files the game loads live beside this folder.
+assets/audio/_downloads/
+
+__pycache__/
+!assets/characters/footballer/footballer_animated_texture_0.png
+!assets/characters/footballer/footballer_animated_texture_0.png.import

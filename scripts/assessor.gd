@@ -20,6 +20,7 @@ var advantage_calls: Array = []  # {incident or null, time}
 var empty_stops: Array = []      # whistles for nothing
 var timekeeping: Array = []      # {half, ended_at, owed, forced}
 var added_time_given: Array = []
+var subs: Array = []
 var _samples := 0
 var _good_position := 0
 var _too_close := 0
@@ -96,6 +97,10 @@ func note_flag(flag: Dictionary, accepted: bool, ignored := false) -> void:
 
 func note_advantage(incident: Incident) -> void:
 	advantage_calls.append({"incident": incident, "time": m.clock})
+
+
+func note_substitution(waited: float, stoppages_missed: int) -> void:
+	subs.append({"waited": waited, "missed": stoppages_missed})
 
 
 func note_timekeeping(minutes_over: float, owed: int, forced: bool) -> void:
@@ -183,6 +188,10 @@ func finish() -> void:
 			lines.append({"incident": null, "text": "Half %d ran %.1f minutes over the time owed" % [t.half, over - owed], "points": -0.05, "key": false})
 	for e in empty_stops:
 		mark -= 0.1
+	for sub in subs:
+		if sub.missed >= 2:
+			mark -= 0.03
+			lines.append({"incident": null, "text": "A substitute was kept waiting through %d stoppages" % sub.missed, "points": -0.03, "key": false})
 	mark = clampf(mark, 5.0, 9.6)
 	report = {
 		"mark": snappedf(mark, 0.1),

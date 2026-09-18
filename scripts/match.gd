@@ -66,6 +66,10 @@ var whistle_every_restart := false
 ## True while VAR is checking: the restart waits.
 var var_hold := false
 
+## A team waiting to make a substitution: {team, off, on_name, asked_at, stoppages}.
+var sub_request: Dictionary = {}
+var _next_sub_check := 0.0
+
 var sound: SoundBank
 var paused := false
 var headless := false
@@ -223,6 +227,65 @@ func _physics_process(delta: float) -> void:
 	if var_system != null:
 		var_system.step(delta)
 	_nag_about_time()
+	_substitutions()
+
+
+## From the 55th minute each side may want to change somebody — the most tired, as a
+## manager would. The request waits at the halfway line until the referee allows it at a
+## stoppage (Law 3: a substitution is made only when the ball is out of play, with the
+## referee's permission).
+func _substitutions() -> void:
+	if not sub_request.is_empty() or match_seconds() < 55.0 * 60.0 or clock < _next_sub_check:
+		return
+	if phase in [Phase.HALF_TIME, Phase.FULL_TIME, Phase.PRE_MATCH]:
+		return
+	_next_sub_check = clock + half_seconds * 0.12
+	for team in teams:
+		if team.subs_used >= 3 or randf() > 0.5:
+			continue
+		var tired: Array = team.on_field().filter(func(p): return not p.is_keeper() and p.state == Footballer.State.PLAY)
+		if tired.is_empty():
+			continue
+		tired.sort_custom(func(a, b): return a.stamina < b.stamina)
+		var off: Footballer = tired[0]
+		var bench := Names.squad(team.name + " bench", 5)
+		sub_request = {"team": team, "off": off, "on_name": bench[team.subs_used], "asked_at": clock, "stoppages": 0}
+		var board := "Fourth official's board: " if level.fourth_official else ""
+		message.emit("%sSUBSTITUTION — %s #%d off. Allow it at a stoppage (U)" % [board, team.short, off.number], 6.0)
+		return
+
+
+## The referee waves the substitute on.
+func allow_substitution() -> void:
+	if sub_request.is_empty():
+		return
+	if phase not in [Phase.STOPPED, Phase.SET_PIECE, Phase.GOAL, Phase.KICK_OFF]:
+		message.emit("Substitutions only when the ball is out of play", 2.5)
+		return
+	var team: Team = sub_request.team
+	var off: Footballer = sub_request.off
+	if not off.on_pitch:
+		sub_request = {}
+		return
+	var slot := off.slot
+	off.leave(Vector3(off.global_position.x * 0.2, 0, -spec.half_width() - 3.0))
+	var on := Footballer.new()
+	on.setup(team, 12 + team.subs_used, off.role, sub_request.on_name)
+	on.slot = slot
+	on.pace = off.pace + 0.3
+	on.skill = off.skill
+	on.aggression = off.aggression
+	on.honesty = off.honesty
+	add_child(on)
+	on.global_position = Vector3(0, 0, -spec.half_width() - 0.5)
+	on.heading = Vector3(0, 0, 1)
+	players.append(on)
+	team.players.append(on)
+	team.subs_used += 1
+	lost_seconds += 30.0
+	assessor.note_substitution(clock - sub_request.asked_at, sub_request.stoppages)
+	message.emit("%s #%d on for #%d" % [team.short, on.number, off.number], 3.0)
+	sub_request = {}
 
 
 func _idle_players(_delta: float) -> void:
@@ -244,6 +307,8 @@ func _idle_players(_delta: float) -> void:
 
 
 func _set_phase(new_phase: Phase) -> void:
+	if new_phase == Phase.LIVE and phase in [Phase.SET_PIECE, Phase.KICK_OFF] and not sub_request.is_empty():
+		sub_request.stoppages += 1
 	phase = new_phase
 	_phase_time = 0.0
 	phase_changed.emit(new_phase)

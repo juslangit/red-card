@@ -33,7 +33,16 @@ func _shot(name: String) -> void:
 	get_viewport().get_texture().get_image().save_png("res://dev/shots/fp_%s_%s.png" % [level, name])
 
 
+var _fps_t := 0.0
+
+
 func _process(delta: float) -> void:
+	_fps_t += delta
+	if _fps_t > 1.0:
+		_fps_t = 0.0
+		print("fps %d  draw calls %d  primitives %d" % [Engine.get_frames_per_second(),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 	wait += delta
 	match step:
 		0:

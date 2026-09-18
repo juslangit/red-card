@@ -77,6 +77,8 @@ func _physics_process(delta: float) -> void:
 					m.whistle()
 					return
 		Match.Phase.STOPPED, Match.Phase.GOAL:
+			if not m.sub_request.is_empty():
+				m.allow_substitution()
 			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:
 				m.whistle(true)
 				return

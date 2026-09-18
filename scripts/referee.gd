@@ -217,6 +217,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			body.arms.release_right()
 	elif event.is_action_pressed(&"rc_drop"):
 		dropped_ball()
+	elif event.is_action_pressed(&"rc_sub"):
+		m.allow_substitution()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var key := (event as InputEventKey).keycode
 		if key >= KEY_1 and key <= KEY_9 and m.added_announced >= 0 and m.level.fourth_official:

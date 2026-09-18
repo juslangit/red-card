@@ -125,6 +125,9 @@ func _ready() -> void:
 	laws.offside_moment.connect(func(team, positions):
 		for ar in assistants:
 			ar.on_offside_moment(team, positions))
+	laws.recorded.connect(func(inc):
+		for ar in assistants:
+			ar.on_incident(inc))
 	if level.var:
 		var_system = VarSystem.new(self)
 	kick_off_team = teams[0]
@@ -318,6 +321,7 @@ func _set_phase(new_phase: Phase) -> void:
 
 func _on_touch(by: Node, kind: StringName) -> void:
 	laws.on_touch(by, kind)
+	_settle_ref_touch(by, kind)
 	recorder.mark(&"touch")
 
 
@@ -349,12 +353,26 @@ func _on_out(where: Vector3, over_goal_line: bool, in_goal: bool) -> void:
 func _on_hit_referee(speed: float) -> void:
 	if phase != Phase.LIVE:
 		return
-	var incident := laws.referee_touch(ball.global_position)
+	_ref_touch = laws.referee_touch(ball.global_position)
 	sound.thud(ball.global_position)
-	# Whether it matters is known a moment later: who has the ball, and where.
-	get_tree().create_timer(1.6).timeout.connect(func():
-		var promising := ai.possession >= 0 and teams[ai.possession].to_team_space(ball.global_position, spec).x > 0.7
-		laws.settle_referee_touch(incident, ai.possession, promising))
+
+
+## Law 9.2 asks what happened *next*: did the other team get the ball, did a team start a
+## promising attack. So it is settled at the next player's controlled touch, not after a
+## fixed wait — a rebound can take two seconds to reach anybody, and a fixed 1.6 s judged
+## those "play on" before the ball had arrived.
+var _ref_touch: Incident = null
+
+
+func _settle_ref_touch(by: Node, kind: StringName) -> void:
+	if _ref_touch == null or not by is Footballer:
+		return
+	if kind not in [&"control", &"hands"] and clock - _ref_touch.time < 5.0:
+		return
+	var team_now: int = (by as Footballer).team.index
+	var promising := teams[team_now].to_team_space(ball.global_position, spec).x > 0.7
+	laws.settle_referee_touch(_ref_touch, team_now, promising)
+	_ref_touch = null
 
 
 func _on_incident(incident: Incident) -> void:
@@ -444,9 +462,11 @@ func _stop_play() -> void:
 		linked.whistle_time = clock
 	ai.carrier = null
 	_set_phase(Phase.STOPPED)
-	# An offside flag up when the whistle goes is the flag being accepted.
+	# A flag up when the whistle goes is the flag being accepted.
 	if flag.has("offside"):
 		accept_flag()
+	elif flag.has("foul"):
+		_accept_foul_flag()
 	elif var_system != null:
 		var_system.on_stoppage()
 	decision_made.emit("", true)
@@ -475,6 +495,11 @@ func _incident_for_whistle() -> Incident:
 func signal_advantage() -> void:
 	if phase != Phase.LIVE:
 		return
+	# Advantage over an assistant's foul flag acknowledges it: he lowers it.
+	if flag.has("foul"):
+		for ar in assistants:
+			ar.lower()
+		flag = {}
 	for i in range(laws.incidents.size() - 1, -1, -1):
 		var inc: Incident = laws.incidents[i]
 		if clock - inc.time > 4.0:
@@ -653,6 +678,25 @@ func _award_flag_restart(offender: Footballer, to: Team, inc: Incident) -> void:
 	ai.begin_set_piece(restart)
 	_set_phase(Phase.SET_PIECE)
 	decision_made.emit(_restart_words(&"indirect_free_kick", to) + " (offside)", true)
+
+
+## A foul flag accepted: the stoppage is for the assistant's foul, and he points the way
+## the free kick goes. The referee still gives the restart (and any card) himself.
+func _accept_foul_flag() -> void:
+	var inc: Incident = flag.get("incident")
+	var ar = flag.get("assistant")
+	assessor.note_flag(flag, true)
+	if inc != null:
+		inc.whistled = true
+		inc.whistle_time = clock
+		stopped_for = inc
+		var to: Team = teams[1] if inc.offender.team == teams[0] else teams[0]
+		for other in assistants:
+			if other != ar:
+				other.lower()
+		ar.point_restart(to)
+		message.emit("Assistant: foul by %s #%d — his flag points %s's way" % [inc.offender.team.short, inc.offender.number, to.name], 4.0)
+	flag = {}
 
 
 ## The referee waves the flag down: play on. `ignored` is the assistant giving up on a

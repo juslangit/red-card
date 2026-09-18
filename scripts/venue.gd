@@ -8,8 +8,8 @@ extends Node3D
 ## between them is not only how they look — each level brings its own officiating team,
 ## the way real football does:
 ##
-##   village   club assistants, one from each side, who only flag the ball out of play
-##             and are not neutral. Offside is the referee's alone.
+##   village   club assistants, one from each side: they flag offside and fouls too, but
+##             less sharply than qualified ones, and not neutrally.
 ##   town      two neutral assistant referees.
 ##   league    assistants and a fourth official, who holds up the added-time board.
 ##   final     all of that, and VAR.

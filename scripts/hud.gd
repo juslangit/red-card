@@ -26,6 +26,8 @@ var _hint: Label
 var _hint_plate: PanelContainer
 var _flag: PanelContainer
 var _flag_label: Label
+var _flag_marker: Label
+var _flag_edge: Label
 var _score_home: Label
 var _score_away: Label
 var _half_label: Label
@@ -140,6 +142,16 @@ func _build_prompts() -> void:
 	var f := _plate(UiTheme.YELLOW, UiTheme.HEADING)
 	_flag = f[0]
 	_flag_label = f[1]
+	_flag_marker = UiTheme.label("⚑", 64, UiTheme.YELLOW, UiTheme.heavy())
+	_flag_marker.add_theme_constant_override("outline_size", 10)
+	_flag_marker.add_theme_color_override("font_outline_color", UiTheme.INK)
+	_flag_marker.visible = false
+	_root.add_child(_flag_marker)
+	_flag_edge = UiTheme.label("", UiTheme.TITLE, UiTheme.YELLOW, UiTheme.display())
+	_flag_edge.add_theme_constant_override("outline_size", 12)
+	_flag_edge.add_theme_color_override("font_outline_color", UiTheme.INK)
+	_flag_edge.visible = false
+	_root.add_child(_flag_edge)
 	var toast := _plate(UiTheme.ACCENT, UiTheme.TITLE)
 	_toast = toast[0]
 	_toast_label = toast[1]
@@ -235,8 +247,15 @@ func _process(delta: float) -> void:
 	# An assistant's flag.
 	_flag.visible = not m.flag.is_empty()
 	if _flag.visible:
-		_flag_label.text = "⚑  FLAG — %s accept · %s wave down" % [Controls.short(settings, &"rc_whistle"), Controls.short(settings, &"rc_wave")]
-		_place(_flag, Vector2(centre.x, 150), true)
+		var what := "OFFSIDE" if m.flag.has("offside") else "FOUL"
+		var extra := ("  ·  %s advantage" % Controls.short(settings, &"rc_advantage")) if what == "FOUL" else ""
+		_flag_label.text = "⚑  %s FLAG — %s whistle · %s wave down%s" % [what,
+			Controls.short(settings, &"rc_whistle"), Controls.short(settings, &"rc_wave"), extra]
+		# On the top row beside the score bug, clear of a drill's brief below it.
+		_flag.reset_size()
+		var w := _flag.get_combined_minimum_size().x
+		_place(_flag, Vector2(maxf(centre.x, 470.0 + w * 0.5), 62), true)
+	_point_at_flag(size)
 
 	# The watch.
 	_watch.visible = ref.holding_watch
@@ -262,6 +281,41 @@ func _process(delta: float) -> void:
 	_message.visible = _message_left > 0.0
 	if _message.visible:
 		_place(_message, Vector2(centre.x, 220), true)
+
+
+## Where the assistant with his flag up is. On screen: a flag marker over his head, because
+## at thirty-five metres a real flag is a few pixels. Off screen: a big arrow at the edge of
+## the screen on the side to turn to — Luqman asked for the linesmen to help the referee
+## see what he cannot, and a flag behind your back helps nobody.
+func _point_at_flag(size: Vector2) -> void:
+	var ar = m.flag.get("assistant") if not m.flag.is_empty() else null
+	if ar == null:
+		_flag_marker.visible = false
+		_flag_edge.visible = false
+		return
+	var head: Vector3 = ar.body.global_position + Vector3(0, 2.6, 0)
+	var cam := ref.camera
+	var on_screen := false
+	if not cam.is_position_behind(head):
+		var at := cam.unproject_position(head)
+		if at.x > 40 and at.x < size.x - 40 and at.y > 40 and at.y < size.y - 40:
+			on_screen = true
+			_flag_marker.visible = true
+			_flag_marker.reset_size()
+			_flag_marker.position = at - _flag_marker.size * 0.5
+	_flag_marker.visible = on_screen
+	_flag_edge.visible = not on_screen
+	if not on_screen:
+		var to: Vector3 = ar.body.global_position - ref.global_position
+		to.y = 0.0
+		var look := ref.look_direction()
+		look.y = 0.0
+		# A positive angle about +Y is to the left.
+		var left := look.normalized().signed_angle_to(to.normalized(), Vector3.UP) > 0.0
+		var behind := absf(look.normalized().signed_angle_to(to.normalized(), Vector3.UP)) > deg_to_rad(120.0)
+		_flag_edge.text = ("◀\nFLAG" if left else "▶\nFLAG") + ("\nBEHIND" if behind else "")
+		_flag_edge.reset_size()
+		_flag_edge.position = Vector2(30.0 if left else size.x - _flag_edge.size.x - 30.0, size.y * 0.45)
 
 
 func _place(control: Control, at: Vector2, centred: bool) -> void:

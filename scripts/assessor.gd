@@ -165,7 +165,8 @@ func finish() -> void:
 		if not right:
 			var delta := -0.1
 			mark += delta
-			var what := "Accepted a wrong offside flag" if f.accepted else ("Ignored a correct offside flag" if f.ignored else "Waved down a correct offside flag")
+			var called: String = String(f.flag.get("kind", &"offside"))
+			var what := ("Accepted a wrong %s flag" % called) if f.accepted else (("Ignored a correct %s flag" if f.ignored else "Waved down a correct %s flag") % called)
 			lines.append({"incident": f.flag.get("incident"), "text": what, "points": delta, "key": false})
 	# Positioning.
 	var positioning := _positioning()

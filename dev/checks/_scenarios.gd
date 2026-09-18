@@ -66,15 +66,26 @@ func _next() -> void:
 	bot.setup(m, ref)
 	bot.idle = current.idle
 	bot.stay = def.get("ref_still", false)
+	bot.trace = not OS.get_cmdline_user_args().is_empty()
 	holder.add_child(bot)
 	if current.id == "t_move" and not current.idle:
 		holder.set_meta("markers", true)
 	started = Time.get_ticks_msec()
 
 
+var _tick := 0.0
+
+
 func _process(_d: float) -> void:
 	if holder == null:
 		return
+	if OS.get_cmdline_user_args().has("positions") and run != null and run.m != null:
+		_tick += _d
+		if _tick > 0.25:
+			_tick = 0.0
+			var p9 = run._player([0, 9])
+			var b = run.m.ball
+			print("   t=%.2f ball(%.1f,%.1f,%.1f) v%.1f  #9(%.1f,%.1f) held=%s free=%s state=%d" % [run.t, b.global_position.x, b.global_position.y, b.global_position.z, b.speed(), p9.global_position.x, p9.global_position.z, run.m.ai.held.has(p9), p9.is_free(), p9.state])
 	if holder.has_meta("markers") and run._markers.size() > 0:
 		# Walk to the next marker not yet visited.
 		for mk in run._markers:

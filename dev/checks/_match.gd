@@ -66,6 +66,11 @@ func _summary() -> void:
 		counts[inc.kind] = counts.get(inc.kind, 0) + 1
 	print("incidents: ", counts)
 	print("ai: ", m.ai.stats)
+	var kinds := {}
+	for f in m.assessor.flags:
+		var k := "%s %s" % [f.flag.get("kind"), "right" if f.correct else "WRONG"]
+		kinds[k] = kinds.get(k, 0) + 1
+	print("flags: ", kinds)
 	print("score %s %d - %d %s" % [m.teams[0].name, m.teams[0].goals, m.teams[1].goals, m.teams[1].name])
 	var r := m.assessor.report
 	print("mark ", r.get("mark"), " ", r.get("band"), " decisions ", r.get("decisions_right"), "/", r.get("decisions_total"))

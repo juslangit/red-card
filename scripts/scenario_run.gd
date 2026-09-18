@@ -179,7 +179,7 @@ func _physics_process(delta: float) -> void:
 			m.ball.kick(bounce * m.ball.speed() * 0.3, _arms_player, &"handball")
 			_arms_player = null
 	# Held runners keep running to where they were sent.
-	for pair in def.get("run", []):
+	for pair in def.get("run", []) + def.get("run_after", []):
 		var p := _player([pair[0], pair[1]])
 		if m.ai.held.has(p) and p.is_free():
 			p.goal = pair[2]
@@ -198,6 +198,11 @@ func _do(step: Dictionary) -> void:
 			# Bring the tackler right up to the man first, so the contact is visible.
 			by.global_position = on.global_position - on.heading * 0.9 + Vector3(0, 0, 0.3)
 			m.ai.force_foul(by, on, severity, step.get("sliding", false), step.get("behind", true), step.get("stays_up", false))
+			if step.get("flagged", false):
+				var inc: Incident = m.laws.incidents.back()
+				var ar: Assistant = m.assistants[1] if on.global_position.z > 0.0 else m.assistants[0]
+				ar.body.global_position = Vector3(on.global_position.x - 4.0, 0, ar.body.global_position.z)
+				ar.flag_foul(inc)
 			if not step.get("stays_up", false):
 				m.ai.held.erase(on)
 				m.ai.held.erase(by)
@@ -222,6 +227,12 @@ func _do(step: Dictionary) -> void:
 			m.ai.carrier = null
 			by.one_shot("kick", 0.5)
 			m.ball.kick(step.velocity, by, StringName(step.get("kind", "clearance")))
+			# Players who walk away once the ball has gone, so the drill's moment is not theirs.
+			for pair in def.get("run_after", []):
+				var walker := _player([pair[0], pair[1]])
+				m.ai.held[walker] = true
+				walker.goal = pair[2]
+				walker.hurry = 0.5
 			m.on_played(by, StringName(step.get("kind", "clearance")))
 			m.sound_kick(m.ball.global_position, (step.velocity as Vector3).length())
 		"shoot":
@@ -259,7 +270,8 @@ func _do(step: Dictionary) -> void:
 			m.ai.held.erase(by)
 			var to := _player(step.to)
 			m.ai.carrier = null
-			var v: Vector3 = m.ai._pass_velocity(m.ball.global_position, to.global_position + Vector3(2, 0, 0), false)
+			# Firm and to feet: a soft pass takes four seconds and anybody can cut it out.
+			var v: Vector3 = m.ai._pass_velocity(m.ball.global_position, to.global_position + Vector3(2, 0, 0), false) * 1.25
 			by.one_shot("pass", 0.5)
 			m.ball.kick(v, by, &"pass")
 			m.sound_kick(m.ball.global_position, v.length())

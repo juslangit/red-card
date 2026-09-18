@@ -15,6 +15,12 @@ var accuracy := 1.0
 var idle := false
 ## Stand where you were put.
 var stay := false
+var trace := false
+
+
+func _say(what: String) -> void:
+	if trace:
+		print("   %.2f BOT %s  (phase %s, flag %s)" % [m.clock, what, Match.Phase.keys()[m.phase], m.flag.get("kind", "-")])
 var log_decisions := false
 var _rng := RandomNumberGenerator.new()
 
@@ -51,8 +57,11 @@ func _physics_process(delta: float) -> void:
 			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:
 				m.whistle(true)
 				return
+			# Flags are looked at before the bot's own view of the truth, so the checks see
+			# the assistants being used.
 			if not m.flag.is_empty():
 				if m.flag.get("incident") != null:
+					_say("whistle for the flag")
 					m.whistle()
 				else:
 					m.wave_flag()
@@ -60,17 +69,21 @@ func _physics_process(delta: float) -> void:
 			for inc in m.laws.incidents:
 				if _seen.has(inc) or inc.kind in [&"out", &"goal", &"dissent"]:
 					continue
-				if m.clock - inc.time < 0.6:
+				# Give an assistant the first chance to flag it.
+				if m.clock - inc.time < 0.9:
 					continue
 				_seen[inc] = true
 				# A foul where the fouled team is still going: play advantage.
 				if inc.kind == &"foul" and inc.victim != null and inc.victim.state != Footballer.State.FALLEN \
 						and m.ai.possession == inc.victim.team.index:
+					_say("advantage")
 					m.signal_advantage()
 					continue
 				if inc.must_stop and m.clock - inc.time < inc.window:
+					_say("whistle for %s" % inc.kind)
 					m.whistle()
 					return
+				_say("let %s go (must_stop %s, %.1f s after)" % [inc.kind, inc.must_stop, m.clock - inc.time])
 			# The ball hit the referee and it mattered: stop for a dropped ball.
 			for inc in m.laws.incidents:
 				if inc.kind == &"hit_referee" and inc.must_stop and not inc.whistled and m.clock - inc.time < 6.0:

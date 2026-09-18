@@ -201,9 +201,9 @@ func _officials_words(level: Dictionary) -> String:
 	var bits := []
 	match level.assistants:
 		"club":
-			bits.append("Club linesmen who only flag the ball out — and not always fairly. Offside is yours alone.")
+			bits.append("Club linesmen, one from each side: they flag offside and fouls near them, but not as sharply as qualified assistants — and not always fairly.")
 		_:
-			bits.append("Two neutral assistant referees.")
+			bits.append("Two neutral assistant referees who flag offside and fouls near them.")
 	if level.fourth_official:
 		bits.append("A fourth official with the added-time board.")
 	if level.var:

@@ -60,6 +60,8 @@ GALLERIES = [
         ("docs/shots/fp_town_point.png", "After a sliding foul: the fouled player down in football's own fall clip, the prompt reading FREE KICK - Blueport."),
         ("docs/shots/fp_town_card.png", "The yellow card shown to the player being looked at, with his number and name on the target tag."),
         ("docs/shots/fp_town_watch.png", "Holding TAB: the wrist comes up and the watch reads the match time."),
+        ("docs/shots/flag_behind.png", "A foul flag behind the referee's back: the banner beside the score, and a big arrow at the edge of the screen saying which way to turn."),
+        ("docs/shots/flag_facing.png", "Turned round: a yellow flag marks the assistant, thirty-odd metres away, waggling his flag for a foul."),
         ("docs/shots/fp_final_kickoff.png", "The National Stadium under floodlights - 12,000 simplified spectators at 60 fps on an M2."),
     ]),
     ("screens-grounds", "The grounds", "Four grounds, one per rung of the career, all built in code by venue.gd and stands.gd from the Law 1 numbers in pitch_spec.gd.", [

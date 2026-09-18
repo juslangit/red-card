@@ -1,7 +1,11 @@
-"""Puts the badminton animations onto a Meshy character and exports it for the game.
+"""Puts the animations onto the Meshy footballer and exports it for the game.
 
-    blender --background --python tools/meshy/rig_clips.py -- player_blue
-    blender --background --python tools/meshy/rig_clips.py -- player_blue preview
+Carried over from Referee For Fun (tools/meshy/rig_clips.py there), which wrote every
+net sport's clips onto this same character. Red Card adds football's own in
+`football_clips.py` and reads the files from assets/characters/footballer/.
+
+    blender --background --python tools/meshy/rig_clips.py -- footballer
+    blender --background --python tools/meshy/rig_clips.py -- footballer preview football
 
 Meshy generates and rigs the character and throws in a walk and a run, which are two
 of the clips the game needs and two it would be a waste of time to key by hand. It has
@@ -33,6 +37,8 @@ from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
 from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
 from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
 from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
+from football_clips import CLIPS as FOOTBALL_CLIPS  # noqa: E402
+from football_clips import SHOTS as FOOTBALL_SHOTS  # noqa: E402
 
 # Both sports go into one character.
 #
@@ -43,7 +49,7 @@ from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
 # Tennis's are `tn_` and sepak takraw's `st_` for the same reason.
 CLIPS = dict(BADMINTON_CLIPS)
 for _name, _clip in (list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items())
-                     + list(TAKRAW_CLIPS.items())):
+                     + list(TAKRAW_CLIPS.items()) + list(FOOTBALL_CLIPS.items())):
     if _name in CLIPS:
         raise SystemExit(f"clip name {_name} is claimed by both sports")
     CLIPS[_name] = _clip
@@ -68,7 +74,7 @@ def curves(action):
 
 
 def source(name, suffix=""):
-    return os.path.join(PROJECT, "assets", "meshy", name, f"{name}{suffix}.glb")
+    return os.path.join(PROJECT, "assets", "characters", name, f"{name}{suffix}.glb")
 
 
 # --- reading Meshy's files ------------------------------------------------------
@@ -392,14 +398,15 @@ SHOTS = [
 ]
 
 
-def preview(name):
+def preview(name, shots=None):
     """A row of the character in one pose from each clip, so they can be looked at."""
+    shots = shots or SHOTS
     rig = load_character(name)
     body = next(o for o in bpy.data.objects if o.type == "MESH")
     height = 1.8
     spacing = height * 0.78
 
-    for column, (clip_name, key_index) in enumerate(SHOTS):
+    for column, (clip_name, key_index) in enumerate(shots):
         bpy.ops.object.select_all(action="DESELECT")
         rig.select_set(True)
         body.select_set(True)
@@ -424,9 +431,9 @@ def preview(name):
     rig.hide_render = True
     body.hide_render = True
 
-    _camera(len(SHOTS) * spacing, height)
+    _camera(len(shots) * spacing, height)
     _render(os.path.join(HERE, "_preview.png"))
-    print("labels: " + "  |  ".join(f"{c}[{k}]" for c, k in SHOTS))
+    print("labels: " + "  |  ".join(f"{c}[{k}]" for c, k in shots))
 
 
 def _camera(width, height):
@@ -465,6 +472,6 @@ if __name__ == "__main__":
     who = argv[0] if argv else "player_blue"
     bpy.context.scene.render.fps = FPS
     if len(argv) > 1 and argv[1] == "preview":
-        preview(who)
+        preview(who, FOOTBALL_SHOTS if len(argv) > 2 and argv[2] == "football" else None)
     else:
         forge(who)

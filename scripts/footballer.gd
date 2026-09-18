@@ -28,7 +28,8 @@ const CLIPS := {
 	"shuffle": ["shuffle"],
 	"kick": ["fb_kick", "st_serve"],
 	"pass": ["fb_pass", "st_set"],
-	"tackle": ["fb_slide", "lunge"],
+	"tackle": ["lunge"],
+	"slide": ["fb_slide", "lunge"],
 	"header": ["fb_header", "st_header"],
 	"throw_in": ["fb_throw_in", "st_throw"],
 	"keeper_ready": ["fb_keeper_ready", "vb_ready"],
@@ -83,6 +84,7 @@ var _state_left := 0.0
 var _fall_dir := Vector3.FORWARD
 var _fall_amount := 0.0
 var injured := false
+var _clip_fall := false
 ## Officials stand like officials — relaxed, arms down — not in a player's ready stance.
 var official := false
 
@@ -118,7 +120,7 @@ func _ready() -> void:
 	skeleton = _model.find_child("Skeleton3D", true, false)
 	_mesh = _model.find_child("char1", true, false)
 	for clip in ["idle", "walk", "run", "backpedal", "shuffle", "ready", "tired", "argue",
-			"celebrate", "vb_ready"]:
+			"celebrate", "vb_ready", "fb_idle", "fb_stand", "fb_lie"]:
 		if _anim.has_animation(clip):
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	_dress()
@@ -247,6 +249,15 @@ func fall(towards: Vector3, seconds: float, hurt := false) -> void:
 	var flat := Vector3(towards.x, 0.0, towards.z)
 	_fall_dir = flat.normalized() if flat.length() > 0.01 else heading
 	velocity *= 0.5
+	# With football's own fall clip, the body turns to face the way it is going down and
+	# the clip does the falling. Keepers diving sideways still tip over whole, arms up.
+	_clip_fall = _anim.has_animation("fb_fall") and not is_keeper()
+	if _clip_fall:
+		heading = _fall_dir
+		transform.basis = Basis.looking_at(heading, Vector3.UP)
+	elif is_keeper():
+		arms.set_right(arms.to_model(Vector3.UP + _fall_dir * 0.3), Vector3.ZERO, 1.0)
+		arms.set_left(arms.to_model(Vector3.UP + _fall_dir * 0.3), Vector3.ZERO, 1.0)
 	play("fall", 0.1)
 	arms.release()
 	fell.emit(self)
@@ -311,6 +322,8 @@ func replay_pose(pos: Vector3, facing: Vector3, speed_vec: Vector3, fallen: bool
 		state = State.PLAY
 		_animate()
 		state = st
+	if fallen and _clip_fall:
+		play("lie", 0.1)
 
 
 ## Drives the body from outside, for the referee: the player's own input decides the
@@ -343,6 +356,8 @@ func step(delta: float) -> void:
 				_fall_amount = move_toward(_fall_amount, 0.0, delta * 6.4)
 				if _fall_amount <= 0.0:
 					state = State.PLAY
+					if is_keeper():
+						arms.release()
 			_apply_fall()
 		State.CELEBRATING, State.PROTESTING:
 			if _state_left <= 0.0:
@@ -409,6 +424,10 @@ func _animate() -> void:
 		State.ONE_SHOT:
 			return
 		State.FALLEN:
+			if _clip_fall:
+				if _fall_amount > 0.6:
+					play("lie", 0.3)
+				return
 			play("lie" if _fall_amount > 0.8 else "fall", 0.15)
 			return
 		State.CELEBRATING:
@@ -440,6 +459,9 @@ func _animate() -> void:
 ## Tips the body over about its feet, in the direction of the fall. The model is put
 ## down on its side of the pivot so it lies on the grass rather than through it.
 func _apply_fall() -> void:
+	if _clip_fall:
+		_pivot.transform = Transform3D.IDENTITY
+		return
 	var local_dir := transform.basis.inverse() * _fall_dir
 	local_dir.y = 0.0
 	if local_dir.length() < 0.01:

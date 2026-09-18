@@ -486,5 +486,4 @@ func _simplified(mesh: ArrayMesh, target: int) -> ArrayMesh:
 	var out := ArrayMesh.new()
 	arrays[Mesh.ARRAY_INDEX] = best
 	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	print("  spectator: %d triangles, simplified to %d" % [(mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, best.size() / 3])
 	return out

@@ -274,6 +274,22 @@ func leave(exit_point: Vector3) -> void:
 	arms.release()
 
 
+## Drives the body from outside, for the referee: the player's own input decides the
+## velocity and the facing, and the body only has to look like it is doing that.
+func puppet(new_velocity: Vector3, facing: Vector3) -> void:
+	velocity = new_velocity
+	var flat := Vector3(facing.x, 0.0, facing.z)
+	if flat.length() > 0.01:
+		heading = flat.normalized()
+		transform.basis = Basis.looking_at(heading, Vector3.UP)
+	if state == State.ONE_SHOT:
+		_state_left -= get_physics_process_delta_time()
+		if _state_left <= 0.0:
+			state = State.PLAY
+		return
+	_animate()
+
+
 ## Advances the body by one tick: steering, facing, the fall and the clip.
 func step(delta: float) -> void:
 	_state_left -= delta

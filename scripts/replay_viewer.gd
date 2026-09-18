@@ -36,6 +36,7 @@ var _slider: HSlider
 var _choices: HBoxContainer
 var _view_buttons: Array = []
 var _orbit := 0.0
+var _close_button: Button
 
 
 func setup(match_node: Match, referee: Referee) -> void:
@@ -85,7 +86,8 @@ func _ready() -> void:
 		var b := Menus.button(pair[0], func(): view = pair[1], 200)
 		row.add_child(b)
 		_view_buttons.append(b)
-	row.add_child(Menus.button("Close", close, 160))
+	_close_button = Menus.button("Close", close, 160)
+	row.add_child(_close_button)
 	_choices = HBoxContainer.new()
 	_choices.add_theme_constant_override("separation", 16)
 	box.add_child(_choices)
@@ -121,8 +123,14 @@ func open(centre: float, title: String, focus: Vector3, choices: Array = []) -> 
 			close(), 300)
 		_choices.add_child(b)
 	_choices.visible = not choices.is_empty()
+	_close_button.visible = choices.is_empty()
 	_camera.current = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## True while this is a pitch-side monitor with a decision still to make.
+func deciding() -> bool:
+	return active and _choices.visible
 
 
 func close() -> void:

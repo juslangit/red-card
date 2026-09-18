@@ -63,6 +63,8 @@ var flag: Dictionary = {}
 ## In training and scenarios every restart waits for the whistle, so there is always
 ## time to show a card before play goes on.
 var whistle_every_restart := false
+## True while VAR is checking: the restart waits.
+var var_hold := false
 
 var sound: SoundBank
 var paused := false
@@ -207,7 +209,7 @@ func _physics_process(delta: float) -> void:
 			var ready := ai.step_set_piece(delta)
 			if phase == Phase.SET_PIECE and _phase_time > 30.0:
 				lost_seconds += delta * clock_scale()
-			if ready and not restart_needs_whistle:
+			if ready and not restart_needs_whistle and not var_hold:
 				_take_restart()
 			ai._separate()
 		Phase.HALF_TIME, Phase.FULL_TIME, Phase.PRE_MATCH:
@@ -273,6 +275,8 @@ func _on_out(where: Vector3, over_goal_line: bool, in_goal: bool) -> void:
 		message.emit("GOAL? — point to the centre circle to give it", 5.0)
 	else:
 		_set_phase(Phase.STOPPED)
+		if var_system != null:
+			var_system.on_stoppage()
 	for ar in assistants:
 		ar.on_out(incident)
 
@@ -306,13 +310,17 @@ func _watch_injuries(_delta: float) -> void:
 			laws.serious_injury(p, p.global_position)
 
 
-## Advantage (Law 5.3): if the team that was fouled does not get it within a few seconds,
-## the referee may still go back and give the free kick. After that, it is gone.
+## Advantage (Law 5.3): the advantage has to come "at that time or within a few seconds".
+## Whether it did is judged two and a half seconds on — still with the ball, it came; a
+## turnover later than that is the ordinary run of play, not a failed advantage (an
+## earlier version checked at four seconds and marked a good advantage wrong because the
+## attack broke down afterwards). Up to four seconds the referee may still go back.
 func _watch_advantage() -> void:
 	if advantage_for == null:
 		return
-	if clock - advantage_time > 4.0:
+	if clock - advantage_time > 2.5 and not advantage_for.details.has("advantage_realised"):
 		advantage_for.details["advantage_realised"] = ai.possession == advantage_for.expected_team.index
+	if clock - advantage_time > 4.0:
 		advantage_for = null
 
 
@@ -345,6 +353,9 @@ func whistle(long := false) -> void:
 				return
 			_stop_play()
 		Phase.KICK_OFF, Phase.SET_PIECE:
+			if var_hold:
+				message.emit("Wait — VAR is checking", 1.5)
+				return
 			if restart_needs_whistle:
 				restart_needs_whistle = false
 				if ai.set_piece_ready or _phase_time > 2.0:
@@ -371,6 +382,8 @@ func _stop_play() -> void:
 	# An offside flag up when the whistle goes is the flag being accepted.
 	if flag.has("offside"):
 		accept_flag()
+	elif var_system != null:
+		var_system.on_stoppage()
 	decision_made.emit("", true)
 
 
@@ -426,6 +439,8 @@ func award(type: StringName, to: Team) -> void:
 	# A goal given or taken away.
 	if phase == Phase.GOAL:
 		var goal_incident := linked
+		if var_system != null:
+			var_system.on_award(goal_incident, type, to, true)
 		if type == &"kick_off":
 			var scoring: Team = goal_incident.details.scoring
 			scoring.goals += 1
@@ -442,6 +457,8 @@ func award(type: StringName, to: Team) -> void:
 			for p: Footballer in players:
 				p.calm()
 	_react_to(linked)
+	if var_system != null and phase != Phase.GOAL:
+		var_system.on_award(linked, type, to, false)
 	restart = {"type": type, "team": to, "spot": spot}
 	restart_needs_whistle = type in [&"penalty"] or restart.get("carded", false) or whistle_every_restart
 	ai.begin_set_piece(restart)
@@ -510,6 +527,8 @@ func show_card(player: Footballer, colour: StringName) -> void:
 		_send_off(player)
 	assessor.note_card(player, actual)
 	card_shown.emit(player, actual)
+	if var_system != null and not assessor.cards.is_empty():
+		var_system.on_card(player, &"red" if actual in [&"red", &"second_yellow"] and colour == &"red" else actual, assessor.cards.back().incident)
 	lost_seconds += 20.0
 	# After a card the restart needs the whistle (Law 5).
 	restart["carded"] = true
@@ -571,11 +590,12 @@ func _award_flag_restart(offender: Footballer, to: Team, inc: Incident) -> void:
 	decision_made.emit(_restart_words(&"indirect_free_kick", to) + " (offside)", true)
 
 
-## The referee waves the flag down: play on.
-func wave_flag() -> void:
+## The referee waves the flag down: play on. `ignored` is the assistant giving up on a
+## flag nobody acknowledged, which leaves play going on but is not a decision.
+func wave_flag(ignored := false) -> void:
 	if flag.is_empty():
 		return
-	assessor.note_flag(flag, false)
+	assessor.note_flag(flag, false, ignored)
 	for ar in assistants:
 		ar.lower()
 	flag = {}
@@ -622,6 +642,25 @@ func begin_open_play() -> void:
 	ball.held = false
 	ball.in_play = true
 	_set_phase(Phase.LIVE)
+
+
+## Sets up a different restart after a VAR correction.
+func redo_restart(type: StringName, to: Team, where: Vector3) -> void:
+	for p in players:
+		p.calm()
+	if type == &"kick_off":
+		_line_up_for_kick_off(to)
+		return
+	var spot := spec.clamp_to_field(where, 1.0)
+	if type == &"penalty":
+		spot = spec.penalty_spot(to.attack)
+	elif type == &"free_kick" and spec.in_penalty_area(spot, to.attack):
+		spot.x = spec.goal_line_x(to.attack) - (PitchSpec.PENALTY_AREA_DEPTH + 0.5) * to.attack
+	restart = {"type": type, "team": to, "spot": spot}
+	restart_needs_whistle = true
+	ai.begin_set_piece(restart)
+	_set_phase(Phase.SET_PIECE)
+	decision_made.emit(_restart_words(type, to), true)
 
 
 func _line_up_for_kick_off(team: Team) -> void:

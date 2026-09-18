@@ -90,8 +90,8 @@ func note_card(player: Footballer, colour: StringName) -> void:
 	cards.append(entry)
 
 
-func note_flag(flag: Dictionary, accepted: bool) -> void:
-	flags.append({"flag": flag, "accepted": accepted, "correct": flag.get("incident") != null, "time": m.clock})
+func note_flag(flag: Dictionary, accepted: bool, ignored := false) -> void:
+	flags.append({"flag": flag, "accepted": accepted, "ignored": ignored, "correct": flag.get("incident") != null, "time": m.clock})
 
 
 func note_advantage(incident: Incident) -> void:
@@ -160,7 +160,7 @@ func finish() -> void:
 		if not right:
 			var delta := -0.1
 			mark += delta
-			var what := "Accepted a wrong offside flag" if f.accepted else "Waved down a correct offside flag"
+			var what := "Accepted a wrong offside flag" if f.accepted else ("Ignored a correct offside flag" if f.ignored else "Waved down a correct offside flag")
 			lines.append({"incident": f.flag.get("incident"), "text": what, "points": delta, "key": false})
 	# Positioning.
 	var positioning := _positioning()

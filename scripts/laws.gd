@@ -230,8 +230,12 @@ func foul(offender: Footballer, victim: Footballer, kind: StringName, severity: 
 			card = &"yellow"
 			reasons.append("denying a goal-scoring opportunity with an attempt to play the ball")
 	elif incident.spa and card == &"":
-		card = &"yellow"
-		reasons.append("stopping a promising attack")
+		# Law 12.3: stopping a promising attack is a caution — "except where the referee
+		# awards a penalty kick for an offence which was an attempt to play the ball".
+		var penalty_attempt := incident.expected_restart == &"penalty" and kind != &"holding"
+		if not penalty_attempt:
+			card = &"yellow"
+			reasons.append("stopping a promising attack")
 	incident.expected_card = card
 	incident.card_reason = ", ".join(reasons)
 	incident.key = incident.expected_restart == &"penalty" or card == &"red"

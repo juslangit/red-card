@@ -54,6 +54,8 @@ func _ready() -> void:
 	add_child(report_screen)
 
 	m.phase_changed.connect(_on_phase)
+	if m.var_system != null:
+		m.var_system.review_requested.connect(_on_review)
 	if config.has("scenario"):
 		scenario = Scenarios.start(config.scenario, m, ref, hud)
 		add_child(scenario)
@@ -64,7 +66,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"rc_pause"):
 		if replay.active:
-			replay.close()
+			if not replay.deciding():
+				replay.close()
 		elif report_screen.visible:
 			pass
 		else:
@@ -93,6 +96,16 @@ func _on_phase(phase: Match.Phase) -> void:
 			_half_time_left = 6.0
 		Match.Phase.FULL_TIME:
 			_full_time()
+
+
+## VAR has sent the referee to the monitor: the replay, with the decision to make.
+func _on_review(inc: Incident, title: String, choices: Array, apply: Callable) -> void:
+	var when: float = inc.time if inc != null else m.clock - 3.0
+	var focus: Vector3 = inc.position if inc != null else m.ball.global_position
+	replay.open(when, "ON-FIELD REVIEW — %s" % title, focus, choices)
+	replay.chosen.connect(func(i):
+		apply.call(i)
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED, CONNECT_ONE_SHOT)
 
 
 func _second_half() -> void:

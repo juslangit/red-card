@@ -113,7 +113,7 @@ func step(delta: float) -> void:
 		if _flag_time > FLAG_HOLD and m.phase == Match.Phase.LIVE:
 			# Not acknowledged: he lowers it and the referee has, in effect, waved it down.
 			if m.flag.get("assistant") == self:
-				m.wave_flag()
+				m.wave_flag(true)
 			lower()
 
 

@@ -11,6 +11,10 @@ var ref: Referee
 var _think := 0.0
 var _seen := {}
 var accuracy := 1.0
+## A referee who does nothing at all, for checking that doing nothing fails.
+var idle := false
+## Stand where you were put.
+var stay := false
 var log_decisions := false
 var _rng := RandomNumberGenerator.new()
 
@@ -25,7 +29,13 @@ func setup(match_node: Match, referee: Referee) -> void:
 func _physics_process(delta: float) -> void:
 	if m == null:
 		return
-	_position()
+	if idle:
+		ref.wish = Vector2.ZERO
+		return
+	if not stay:
+		_position()
+	else:
+		ref.wish = Vector2.ZERO
 	_think -= delta
 	if _think > 0.0:
 		return
@@ -53,13 +63,32 @@ func _physics_process(delta: float) -> void:
 				if m.clock - inc.time < 0.6:
 					continue
 				_seen[inc] = true
+				# A foul where the fouled team is still going: play advantage.
+				if inc.kind == &"foul" and inc.victim != null and inc.victim.state != Footballer.State.FALLEN \
+						and m.ai.possession == inc.victim.team.index:
+					m.signal_advantage()
+					continue
 				if inc.must_stop and m.clock - inc.time < inc.window:
+					m.whistle()
+					return
+			# The ball hit the referee and it mattered: stop for a dropped ball.
+			for inc in m.laws.incidents:
+				if inc.kind == &"hit_referee" and inc.must_stop and not inc.whistled and m.clock - inc.time < 6.0:
 					m.whistle()
 					return
 		Match.Phase.STOPPED, Match.Phase.GOAL:
 			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:
 				m.whistle(true)
 				return
+			# Cards still owed from earlier — after advantage, or for dissent.
+			for owed in m.laws.incidents:
+				if m.clock - owed.time > 90.0 or owed.offender == null or not owed.offender.on_pitch:
+					continue
+				var due := owed.expected_card
+				if owed.advantage and owed.spa and not owed.dogso and owed.severity < Laws.Severity.RECKLESS:
+					due = &""
+				if due != &"" and owed.cards_given.is_empty() and owed != m.stopped_for:
+					m.show_card(owed.offender, due)
 			var inc: Incident = m.stopped_for
 			if inc == null:
 				m.award(&"dropped_ball", m.laws.last_player.team if m.laws.last_player else m.teams[0])

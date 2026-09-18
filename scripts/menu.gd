@@ -9,6 +9,7 @@ extends Node3D
 var _ui: Control
 var _page: VBoxContainer
 var _side: VBoxContainer
+var _side_plate: PanelContainer
 var _camera: Camera3D
 var _t := 0.0
 var _quick := {"level": 1, "home": 0, "away": 1}
@@ -64,10 +65,17 @@ func _ready() -> void:
 	_page.add_theme_constant_override("separation", 14)
 	_page.custom_minimum_size = Vector2(620, 0)
 	row.add_child(_page)
+	# The right-hand column sits on its own plate: straight over a stand full of people
+	# its text could not be read.
+	var side_column := VBoxContainer.new()
+	side_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(side_column)
+	_side_plate = PanelContainer.new()
+	_side_plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.84))
+	side_column.add_child(_side_plate)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 12)
-	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_side)
+	_side_plate.add_child(_side)
 
 	var page: String = Game.pending.get("page", "")
 	match page:
@@ -82,6 +90,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_side_plate.visible = _side.get_children().any(func(c): return not c.is_queued_for_deletion())
 	_t += delta * 0.05
 	_camera.global_position = Vector3(cos(_t) * 62.0, 18.0 + sin(_t * 0.7) * 3.0, sin(_t) * 44.0)
 	_camera.look_at(Vector3(0, 2.0, 0), Vector3.UP)
@@ -132,7 +141,6 @@ func _main() -> void:
 	_page.add_child(Menus.button("Quit", func(): get_tree().quit()))
 	go_career.grab_focus.call_deferred()
 	if not Game.settings.trained:
-		_side.add_child(_gap(160))
 		_side.add_child(Menus.card_tag(UiTheme.YELLOW, "NEW HERE?"))
 		_side.add_child(Menus.text("The training ground teaches every signal in a few minutes: moving, the whistle, pointing, advantage, cards, the flag and the watch.", UiTheme.BODY, UiTheme.CHALK))
 
@@ -153,7 +161,9 @@ func _career() -> void:
 	_clear()
 	var career := Game.career
 	_page.add_child(Menus.title("CAREER"))
-	_page.add_child(UiTheme.label(career.title().to_upper(), UiTheme.TITLE, UiTheme.ACCENT, UiTheme.display()))
+	var level_title := UiTheme.label(career.title().to_upper(), UiTheme.TITLE, UiTheme.ACCENT, UiTheme.display())
+	level_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_page.add_child(level_title)
 	var level: Dictionary = Venue.level_by_id(career.level_id())
 	_page.add_child(Menus.text("Matches at %s. %s" % [level.name, _officials_words(level)], UiTheme.BODY, UiTheme.CHALK))
 	if career.finished:
@@ -179,7 +189,6 @@ func _career() -> void:
 		_career(), UiTheme.BUTTON_WIDTH))
 	_page.add_child(_back())
 	# The history on the right.
-	_side.add_child(_gap(40))
 	_side.add_child(UiTheme.label("MATCHES REFEREED", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	if career.history.is_empty():
 		_side.add_child(Menus.text("None yet. Everybody starts on a Sunday morning at the rec.", UiTheme.BODY))
@@ -251,7 +260,6 @@ func _quick_match() -> void:
 	_page.add_child(go)
 	_page.add_child(_back())
 	go.grab_focus.call_deferred()
-	_side.add_child(_gap(60))
 	_side.add_child(UiTheme.label(level.name.to_upper(), UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	_side.add_child(Menus.text(_officials_words(level), UiTheme.BODY, UiTheme.CHALK))
 
@@ -278,7 +286,6 @@ func _list(mode: String) -> void:
 func _describe(s: Dictionary) -> void:
 	for c in _side.get_children():
 		c.queue_free()
-	_side.add_child(_gap(140))
 	_side.add_child(UiTheme.label(s.title.to_upper(), UiTheme.TITLE, UiTheme.CHALK, UiTheme.display()))
 	_side.add_child(Menus.text(s.brief, UiTheme.BODY, UiTheme.CHALK))
 
@@ -309,7 +316,6 @@ func _settings() -> void:
 		_settings()))
 	_page.add_child(_back())
 	# Keys on the right, each rebindable.
-	_side.add_child(_gap(20))
 	_side.add_child(UiTheme.label("CONTROLS — click one, then press a key", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	for action in Controls.ORDER:
 		var b := Menus.button("%s   ·   %s" % [Controls.spelling(s, action), Controls.DEFAULTS[action].label], func(): pass, 820)

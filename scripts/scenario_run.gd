@@ -19,6 +19,7 @@ var _visited := 0
 var _brief_layer: CanvasLayer
 var _event_time := -1.0
 var _was_set_piece := false
+var _arms_player: Footballer = null
 
 
 func _ready() -> void:
@@ -78,12 +79,17 @@ func _setup() -> void:
 	for entry in def.get("place", []):
 		named[_player([entry[0], entry[1]])] = true
 	m.ball.place(ball_at)
+	# "Clear ahead": every defender not named is put behind the ball, so the named ones
+	# are the last line — the last man really is the last man.
+	var clear: bool = def.get("clear_ahead", false)
 	for p in m.players:
 		if named.has(p) or p.is_keeper():
-			if p.is_keeper():
+			if p.is_keeper() and not named.has(p):
 				p.global_position = Vector3(m.spec.goal_line_x(-p.team.attack) + p.team.attack * 1.0, 0, 0)
 			continue
 		var target: Vector3 = m.ai._shape_target(p)
+		if clear and p.team == m.teams[1]:
+			target.x = minf(target.x, ball_at.x - 10.0)
 		# Keep them clear of the scripted moment.
 		if target.distance_to(ball_at) < 9.0:
 			target += (target - ball_at).normalized() * 9.0
@@ -94,8 +100,20 @@ func _setup() -> void:
 		m.ai.held[p] = true
 		p.goal = pair[2]
 		p.hurry = 0.85
+	# Players who must stand exactly where they were put until something happens.
+	for pair in def.get("hold", []):
+		var p := _player(pair)
+		m.ai.held[p] = true
+		p.goal = p.global_position
+		p.hurry = 0.1
 	if def.has("give"):
-		m.ai.give_ball(_player(def.give))
+		var giver := _player(def.give)
+		m.ai.give_ball(giver)
+		# He waits for his cue: left to himself he passes it on before the moment happens.
+		if not m.ai.held.has(giver):
+			m.ai.held[giver] = true
+			giver.goal = giver.global_position
+			giver.hurry = 0.2
 	_started = true
 
 
@@ -152,6 +170,14 @@ func _physics_process(delta: float) -> void:
 		_do(step)
 		if _event_time < 0.0:
 			_event_time = t
+	if _arms_player != null:
+		var rel := m.ball.global_position - _arms_player.global_position
+		if Vector2(rel.x, rel.z).length() < 1.0 and rel.y > 0.5 and rel.y < 2.1:
+			var kicker: Footballer = m.ball.last_touch as Footballer
+			m.laws.handball(_arms_player, kicker, _arms_player.global_position, {"blocked": &"shot"})
+			var bounce := Vector3(-m.ball.velocity.x, 2.0, -m.ball.velocity.z * 0.5).normalized()
+			m.ball.kick(bounce * m.ball.speed() * 0.3, _arms_player, &"handball")
+			_arms_player = null
 	# Held runners keep running to where they were sent.
 	for pair in def.get("run", []):
 		var p := _player([pair[0], pair[1]])
@@ -174,7 +200,12 @@ func _do(step: Dictionary) -> void:
 			m.ai.force_foul(by, on, severity, step.get("sliding", false), step.get("behind", true), step.get("stays_up", false))
 			if not step.get("stays_up", false):
 				m.ai.held.erase(on)
-			m.ai.held.erase(by)
+				m.ai.held.erase(by)
+			else:
+				# Beaten: the tackler is left behind on the grass, not straight back in.
+				by.goal = by.global_position
+				by.hurry = 0.1
+				by.fall(on.heading, 1.6)
 		"release":
 			m.ai.held.clear()
 		"dive":
@@ -186,6 +217,7 @@ func _do(step: Dictionary) -> void:
 			m.ball.velocity = diver.heading * 2.0
 		"kick":
 			var by := _player(step.by)
+			m.ai.held.erase(by)
 			m.ball.place(step.from)
 			m.ai.carrier = null
 			by.one_shot("kick", 0.5)
@@ -194,6 +226,7 @@ func _do(step: Dictionary) -> void:
 			m.sound_kick(m.ball.global_position, (step.velocity as Vector3).length())
 		"shoot":
 			var by := _player(step.by)
+			m.ai.held.erase(by)
 			m.ai.held.clear()
 			m.ai.carrier = null
 			var from := m.ball.global_position
@@ -209,8 +242,9 @@ func _do(step: Dictionary) -> void:
 			var p := _player(step.by)
 			p.arms.set_right(Vector3(-1.0, 0.25, 0.3), Vector3.ZERO, 1.0)
 			p.arms.set_left(Vector3(1.0, 0.25, 0.3), Vector3.ZERO, 1.0)
-			# The ball will hit the arm: make sure the AI's handball rule sees the arms out.
-			m.ai.set_meta("force_arms", p)
+			# The scenario itself decides the handball when the ball gets there, rather than
+			# leaving it to the AI's dice.
+			_arms_player = p
 		"hold":
 			var by := _player(step.by)
 			var on := _player(step.on)
@@ -222,6 +256,7 @@ func _do(step: Dictionary) -> void:
 			on.fall(-on.heading, 2.0)
 		"pass":
 			var by := _player(step.by)
+			m.ai.held.erase(by)
 			var to := _player(step.to)
 			m.ai.carrier = null
 			var v: Vector3 = m.ai._pass_velocity(m.ball.global_position, to.global_position + Vector3(2, 0, 0), false)
@@ -276,6 +311,9 @@ func _check_end() -> void:
 	if def.get("judge") == "flag":
 		if not m.assessor.flags.is_empty():
 			var f: Dictionary = m.assessor.flags[0]
+			if f.get("ignored", false):
+				_finish({"passed": false, "lines": ["The flag stayed up until your assistant gave up. Ignoring it is not a decision — accept it (whistle) or wave it down (X)."]})
+				return
 			var ok: bool = not f.accepted
 			_finish({"passed": ok, "lines": ["He was level — and level is onside. The flag was wrong, and you %s it." % ("waved it down" if ok else "went with")]})
 		elif t > 12.0:
@@ -302,6 +340,9 @@ func _judge(inc: Incident) -> void:
 	var needs_decision := inc.kind in [&"out", &"foul", &"holding", &"handball", &"offside", &"back_pass", &"hit_referee"]
 	var decided := inc.restart_given != &"" or inc.advantage
 	var passed: bool = verdict.points >= 0.0 and (decided or not needs_decision)
+	if inc.kind == &"simulation":
+		# The lesson is not to be fooled; the caution is the extra mark.
+		passed = inc.restart_given == &"" or inc.restart_team != inc.offender.team
 	if inc.kind == &"hit_referee":
 		passed = inc.restart_given == &"dropped_ball"
 		verdict.text = "The ball hit you and changed possession — a dropped ball to the team that had it." if passed else "The ball hit you and changed possession: stop play (whistle) and give a dropped ball (B) to the team that had it."

@@ -71,6 +71,7 @@ GALLERIES = [
     ("screens-menus", "Menus", "The title screen and career, over the National Stadium at night. Sizes and style carried over from Referee For Fun's broadcast theme.", [
         ("docs/shots/menu_main.png", "The title screen."),
         ("docs/shots/menu_career.png", "The career: Sunday League first, the next fixture as two team blocks."),
+        ("docs/shots/pause.png", "The pause screen, fixed 2026-09-18 after Luqman's screenshot: the controls list had wrapped one letter per line, and the drill's brief showed through behind PAUSED."),
     ]),
     ("screens-clips", "Football's own clips", "Written in Blender on the Meshy rig by tools/meshy/football_clips.py, previewed before they go in.", [
         ("docs/shots/football_clips.png", "Stand, idle, kick back / strike / through, pass, slide, falling, lying, lying hurt, throw-in back and release."),

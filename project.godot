@@ -17,6 +17,10 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 boot_splash/bg_color=Color(0.043, 0.051, 0.066, 1)
 config/icon="res://assets/icon.png"
 
+[autoload]
+
+Game="*res://scripts/game.gd"
+
 [display]
 
 window/size/viewport_width=1920
@@ -25,16 +29,8 @@ window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
-[physics]
-
-common/physics_ticks_per_second=60
-
 [rendering]
 
 textures/vram_compression/import_etc2_astc=true
 scaling_3d/scale=0.8
 anti_aliasing/quality/screen_space_aa=1
-
-[autoload]
-
-Game="*res://scripts/game.gd"

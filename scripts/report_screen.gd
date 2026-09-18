@@ -117,7 +117,9 @@ func _career_banner(outcome: String) -> Control:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 20)
 	box.add_child(Menus.card_tag(UiTheme.GOOD if outcome in ["promoted", "champion"] else UiTheme.YELLOW, words[0]))
-	box.add_child(Menus.text(words[1], UiTheme.BODY, UiTheme.CHALK))
+	var line := Menus.text(words[1], UiTheme.BODY, UiTheme.CHALK)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(line)
 	return box
 
 

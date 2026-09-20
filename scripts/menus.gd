@@ -88,9 +88,16 @@ static func paint_live(b: Button, plate: StyleBoxFlat, lit: bool) -> void:
 ## the way thrown away.
 static func career_record(career) -> Control:
 	var r: Dictionary = career.record_so_far()
+	# On a plate: loose text over a floodlit pitch is not readable, which is the whole
+	# reason the right-hand column has had one since the menus were built.
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.GOOD, 0.86))
 	var box := VBoxContainer.new()
+	plate.add_child(box)
 	box.add_theme_constant_override("separation", 6)
 	box.add_child(UiTheme.label("YOUR CAREER", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
+	box.add_child(text("You refereed the cup final. Start again from the village field any time.",
+		UiTheme.SMALL, UiTheme.MUTED))
 	var numbers := HBoxContainer.new()
 	numbers.add_theme_constant_override("separation", 34)
 	for pair in [["MATCHES", "%d" % r.matches], ["AVERAGE", "%.2f" % r.average],
@@ -105,7 +112,7 @@ static func career_record(career) -> Control:
 		box.add_child(text("%s — average %.2f" % [Career.LEVEL_TITLES[int(entry.level)], float(entry.average)],
 			UiTheme.BODY, UiTheme.CHALK))
 	box.add_child(text(career_verdict(r), UiTheme.BODY, UiTheme.ACCENT))
-	return box
+	return plate
 
 
 ## An assessor's last word on the whole thing, in the language of the marks.

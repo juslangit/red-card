@@ -353,12 +353,74 @@ def _travels(clip):
     return any(MOVE in pose for _frame, pose in clip["keys"])
 
 
+# How much harder a sprint swings than Meshy's run, and how far the body leans into it.
+# 1.35, not more: the rotations are amplified about the joints and the body's root stays
+# where it is, so past about 1.5 the knees fold through each other and the player looks as
+# if he is sinking into the pitch rather than sprinting over it.
+SPRINT_SWING = 1.35
+SPRINT_LEAN = 8.0
+# The thighs and the arms swing harder; the knees and ankles are left as they are, since
+# bending those further is what folds the legs up underneath him.
+SPRINT_BONES = ["LeftUpLeg", "RightUpLeg", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm"]
+
+
+def amplify(action, new_name, bones, factor, lean_degrees=0.0):
+    """A copy of a clip with every rotation on `bones` opened up by `factor`.
+
+    Meshy's run covers 2.7 m/s — a jog. A footballer chasing a ball is doing nearer seven,
+    and playing the jog two and a half times faster to keep the feet from skating looks
+    like a cartoon. So the same cycle is swung harder: each key's rotation is taken further
+    from the rest pose along its own axis, which lengthens the stride without inventing a
+    new gait, and the hips tip forward into it.
+
+    A quaternion cannot be scaled by multiplying its numbers. "More of the same rotation"
+    means the same axis turned through a bigger angle, so each key is taken apart into its
+    axis and angle and put back together with the angle multiplied. (Blender's slerp only
+    interpolates between two rotations, never past one.)
+    """
+    from mathutils import Quaternion
+    copy = action.copy()
+    copy.name = new_name
+    copy.use_fake_user = True
+    channels = {}
+    for curve in curves(copy):
+        path = curve.data_path
+        if not path.endswith("rotation_quaternion"):
+            continue
+        bone = path.split('"')[1] if '"' in path else ""
+        if bone not in bones and not (lean_degrees and bone == "Hips"):
+            continue
+        channels.setdefault(bone, {})[curve.array_index] = curve
+    lean = Quaternion((1.0, 0.0, 0.0), math.radians(lean_degrees))
+    for bone, parts in channels.items():
+        if len(parts) < 4:
+            continue
+        keys = len(parts[0].keyframe_points)
+        for k in range(keys):
+            values = [parts[i].keyframe_points[k].co[1] for i in range(4)]
+            quaternion = Quaternion(values)
+            if bone in bones:
+                axis, angle = quaternion.to_axis_angle()
+                quaternion = Quaternion(axis, angle * factor)
+            if lean_degrees and bone == "Hips":
+                quaternion = quaternion @ lean
+            for i in range(4):
+                point = parts[i].keyframe_points[k]
+                point.co[1] = quaternion[i]
+                point.handle_left[1] = quaternion[i]
+                point.handle_right[1] = quaternion[i]
+    print(f"  made {new_name} from {action.name}: swing x{factor}, lean {lean_degrees} deg")
+    return copy
+
+
 def forge(name):
     rig = load_character(name)
     print(f"forging {name}")
 
     steal_animation(name, "_walking", "walk", rig)
-    steal_animation(name, "_running", "run", rig)
+    running = steal_animation(name, "_running", "run", rig)
+    if running is not None:
+        amplify(running, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN)
     meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
     steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,

@@ -22,6 +22,13 @@ dev/shots/
 assets/characters/footballer/*
 !assets/characters/footballer/footballer_animated.glb
 !assets/characters/footballer/footballer_animated.glb.import
+# The body-part map and the digit strip are built by tools/meshy/bake_kit_map.py and are
+# what the kit shader paints from — they belong in the repo, not in the ignored pile of
+# Meshy intermediates.
+!assets/characters/footballer/footballer_parts.png
+!assets/characters/footballer/footballer_parts.png.import
+!assets/characters/footballer/digits.png
+!assets/characters/footballer/digits.png.import
 
 # Raw downloads from `sfx`. The cut files the game loads live beside this folder.
 assets/audio/_downloads/

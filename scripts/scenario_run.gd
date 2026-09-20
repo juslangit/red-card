@@ -20,6 +20,11 @@ var _brief_layer: CanvasLayer
 var _event_time := -1.0
 var _was_set_piece := false
 var _arms_player: Footballer = null
+## The incident this scenario's own script caused. The players go on playing around the
+## script, so a drill that simply took the first incident of the right kind could end up
+## judging a foul the AI committed somewhere else — and marking the referee wrong for
+## missing something that was never the lesson.
+var _scripted: Incident = null
 
 
 func _ready() -> void:
@@ -167,7 +172,12 @@ func _physics_process(delta: float) -> void:
 		if _script_done.has(i) or t < step.t:
 			continue
 		_script_done[i] = true
+		var before := m.laws.incidents.size()
 		_do(step)
+		if _scripted == null and m.laws.incidents.size() > before:
+			var made: Incident = m.laws.incidents.back()
+			if String(made.kind) == String(def.get("judge", "")):
+				_scripted = made
 		if _event_time < 0.0:
 			_event_time = t
 	if _arms_player != null:
@@ -175,6 +185,8 @@ func _physics_process(delta: float) -> void:
 		if Vector2(rel.x, rel.z).length() < 1.0 and rel.y > 0.5 and rel.y < 2.1:
 			var kicker: Footballer = m.ball.last_touch as Footballer
 			m.laws.handball(_arms_player, kicker, _arms_player.global_position, {"blocked": &"shot"})
+			if String(def.get("judge", "")) == "handball":
+				_scripted = m.laws.incidents.back()
 			var bounce := Vector3(-m.ball.velocity.x, 2.0, -m.ball.velocity.z * 0.5).normalized()
 			m.ball.kick(bounce * m.ball.speed() * 0.3, _arms_player, &"handball")
 			_arms_player = null
@@ -292,8 +304,10 @@ func _do(step: Dictionary) -> void:
 			m.laws.back_pass(gk, passer, gk.global_position)
 
 
-## The incident this scenario is about.
+## The incident this scenario is about: the one its own script caused, if it caused one.
 func _incident() -> Incident:
+	if _scripted != null:
+		return _scripted
 	var kind: String = def.get("judge", "")
 	for inc in m.laws.incidents:
 		if String(inc.kind) == kind:

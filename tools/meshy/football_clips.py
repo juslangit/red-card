@@ -45,6 +45,36 @@ def _moved(pose, up, forward=0.0):
     return shifted
 
 
+def _sideways(pose, across, up, forward=0.0):
+    """The whole body shifted sideways as well as up and along. `_moved` cannot do it:
+    a dive goes across the goal, which is the one direction it leaves out."""
+    shifted = dict(pose)
+    shifted[MOVE] = (across, -forward, up)
+    return shifted
+
+
+def mirrored(pose):
+    """The same pose the other way round.
+
+    A keeper dives both ways and it would be silly to write the thing twice. Rotations
+    here are about the world axes, and reflecting left for right turns a rotation
+    (x, y, z) into (x, -y, -z) — the swing forwards and back is unchanged, everything
+    that leans or twists changes hands — while the left and right bones swap names.
+    """
+    out = {}
+    for bone, values in pose.items():
+        if bone == MOVE:
+            out[bone] = (-values[0], values[1], values[2])
+            continue
+        name = bone
+        if bone.startswith("Left"):
+            name = "Right" + bone[4:]
+        elif bone.startswith("Right"):
+            name = "Left" + bone[5:]
+        out[name] = (values[0], -values[1], -values[2])
+    return out
+
+
 # A referee at rest: standing tall, arms down, weight even.
 REF_STAND = dict(STAND)
 
@@ -229,6 +259,77 @@ TACKLE_RECOVER = _moved(lean({
 }, 14), -0.06, 0.08)
 
 
+# --- the goalkeeper ------------------------------------------------------------------
+#
+# All three of his clips were borrowed from beach volleyball: his ready stance was a
+# volleyball ready, his catch a set, and his dive a dig. Worse, the game never even
+# reached for the dive — a keeper going for a ball out of reach called `fall()`, so he
+# toppled over where he stood rather than throwing himself at it. Written properly here.
+#
+# The dive goes to his left; `mirrored()` makes the other one.
+
+KEEPER_SET = lean({
+    "LeftUpLeg": (-12, -16, -6), "LeftLeg": (30, 0, 0),
+    "RightUpLeg": (-12, 16, 6), "RightLeg": (30, 0, 0),
+    "LeftArm": (0, 46, 30), "LeftForeArm": (0, 0, -64),
+    "RightArm": (0, -46, 30), "RightForeArm": (0, 0, 64),
+}, 14)
+
+# Loading onto the near leg: knees deepen, weight shifts the way he is about to go.
+KEEPER_LOAD = lean({
+    "LeftUpLeg": (-14, -30, -6), "LeftLeg": (46, 0, 0),
+    "RightUpLeg": (-8, 8, 6), "RightLeg": (52, 0, 0),
+    "LeftArm": (0, 40, 24), "LeftForeArm": (0, 0, -56),
+    "RightArm": (0, -40, 26), "RightForeArm": (0, 0, 58),
+}, 18)
+
+# Full stretch, off the ground: the body rolls onto its side, both arms reach for the
+# ball, the legs trail. The hips carry the roll, so everything below them comes with it.
+KEEPER_AIR = _sideways({
+    "Hips": (0, -74, 0),
+    "LeftUpLeg": (-16, 0, -8), "LeftLeg": (26, 0, 0),
+    "RightUpLeg": (-4, 0, 8), "RightLeg": (40, 0, 0), "RightFoot": (20, 0, 0),
+    "Spine02": (6, 0, 0),
+    "LeftArm": (0, 92, 26), "LeftForeArm": (0, 0, -14),
+    "RightArm": (0, -66, 40), "RightForeArm": (0, 0, 20),
+}, 0.85, 0.34, 0.15)
+
+# Landing on his side, arms still out in front of him.
+KEEPER_LAND = _sideways({
+    "Hips": (0, -86, 0),
+    "LeftUpLeg": (-10, 0, -8), "LeftLeg": (34, 0, 0),
+    "RightUpLeg": (6, 0, 8), "RightLeg": (54, 0, 0), "RightFoot": (16, 0, 0),
+    "Spine02": (10, 0, 0),
+    "LeftArm": (0, 84, 34), "LeftForeArm": (0, 0, -22),
+    "RightArm": (0, -60, 46), "RightForeArm": (0, 0, 26),
+}, 1.5, -0.72, 0.1)
+
+# Up on one knee on the way back to his feet.
+KEEPER_RISE = _sideways({
+    "Hips": (0, -28, 0),
+    "LeftUpLeg": (-40, 0, -8), "LeftLeg": (86, 0, 0),
+    "RightUpLeg": (10, 0, 8), "RightLeg": (96, 0, 0), "RightFoot": (26, 0, 0),
+    "LeftArm": (0, 54, 40), "LeftForeArm": (0, 0, -40),
+    "RightArm": (0, -50, 20), "RightForeArm": (0, 0, 44),
+}, 0.55, -0.46, 0.05)
+
+# Gathering it in: both hands behind the ball, then hugged to the chest as the knees come
+# up around it. A keeper who has caught it does not stand there with his hands out.
+KEEPER_REACH = lean({
+    "LeftUpLeg": (-16, -10, -6), "LeftLeg": (34, 0, 0),
+    "RightUpLeg": (-16, 10, 6), "RightLeg": (34, 0, 0),
+    "LeftArm": (0, 54, 68), "LeftForeArm": (0, 0, -30),
+    "RightArm": (0, -54, 68), "RightForeArm": (0, 0, 30),
+}, 16)
+
+KEEPER_HUG = lean({
+    "LeftUpLeg": (-26, -12, -6), "LeftLeg": (58, 0, 0),
+    "RightUpLeg": (-26, 12, 6), "RightLeg": (58, 0, 0),
+    "LeftArm": (0, 30, 40), "LeftForeArm": (0, 0, -96),
+    "RightArm": (0, -30, 40), "RightForeArm": (0, 0, 96),
+}, 26)
+
+
 CLIPS = {
     "fb_stand": {
         "loop": True,
@@ -295,6 +396,50 @@ CLIPS = {
             (13, TACKLE_REACH),
             (19, TACKLE_RECOVER),
             (26, PLAYER_IDLE),
+        ],
+    },
+    "fb_keeper_ready": {
+        "loop": True,
+        "keys": [
+            (0, KEEPER_SET),
+            (16, _with(KEEPER_SET, LeftLeg=(38, 0, 0), RightLeg=(38, 0, 0))),
+            (32, KEEPER_SET),
+        ],
+    },
+    "fb_keeper_dive": {
+        "loop": False,
+        "keys": [
+            (0, KEEPER_SET),
+            (3, KEEPER_LOAD),
+            (8, KEEPER_AIR),
+            (13, KEEPER_AIR),
+            (18, KEEPER_LAND),
+            (26, KEEPER_LAND),
+            (33, KEEPER_RISE),
+            (40, KEEPER_SET),
+        ],
+    },
+    "fb_keeper_dive_right": {
+        "loop": False,
+        "keys": [
+            (0, mirrored(KEEPER_SET)),
+            (3, mirrored(KEEPER_LOAD)),
+            (8, mirrored(KEEPER_AIR)),
+            (13, mirrored(KEEPER_AIR)),
+            (18, mirrored(KEEPER_LAND)),
+            (26, mirrored(KEEPER_LAND)),
+            (33, mirrored(KEEPER_RISE)),
+            (40, mirrored(KEEPER_SET)),
+        ],
+    },
+    "fb_keeper_catch": {
+        "loop": False,
+        "keys": [
+            (0, KEEPER_SET),
+            (4, KEEPER_REACH),
+            (9, KEEPER_HUG),
+            (16, KEEPER_HUG),
+            (24, KEEPER_SET),
         ],
     },
     "fb_slide": {

@@ -15,6 +15,8 @@ const GAITS := [
 	{"name": "sprint", "speed": 7.2, "face": Vector3.FORWARD},
 	{"name": "backpedal", "speed": 3.0, "face": Vector3.BACK},
 	{"name": "sidestep", "speed": 2.8, "face": Vector3.LEFT},
+	# Running a bend: he should lean into it rather than pivot on the spot.
+	{"name": "turning", "speed": 6.0, "face": Vector3.FORWARD, "turn": 1.5},
 	# The two ways of going in for the ball, played as they are in a match: a one-shot over
 	# a body that is still moving. Six frames each rather than four, because what matters
 	# in a tackle is the whole movement.
@@ -30,6 +32,7 @@ var shot := 0
 var wait := 0.0
 var _marks: Array[MeshInstance3D] = []
 var _fired := false
+var _turned := 0.0
 
 
 func _ready() -> void:
@@ -97,13 +100,33 @@ func _process(delta: float) -> void:
 		_fired = true
 		player.state = Footballer.State.PLAY
 		player.one_shot(gait.one_shot as String, 1.6)
-	player.puppet(going, gait.face as Vector3)
+	if gait.has("turn"):
+		# Steered round a bend instead of driven straight, so `_face` has a turn to make.
+		_turned += float(gait.turn) * delta
+		var way := Vector3.FORWARD.rotated(Vector3.UP, _turned)
+		# Steered rather than driven, so `_face` has a real turn to make. He is sent to a
+		# point ahead on the bend and told to hurry, and then put back where he started so
+		# he stays in front of the camera.
+		player.goal = player.global_position + way * 10.0
+		player.hurry = 1.0
+		player.face_point = player.global_position + way * 8.0
+		var was := player.global_position
+		player.step(delta)
+		player.global_position = was
+		going = way * float(gait.speed)
+	else:
+		player.face_point = null
+		player.puppet(going, gait.face as Vector3)
 	wait += delta
 	if wait > 0.12:
 		wait = 0.0
 		get_viewport().get_texture().get_image().save_png(
 			"res://dev/shots/gait_%s_%d.png" % [gait.name, shot])
 		shot += 1
+		if gait.has("turn"):
+			print("   leaning %.1f deg into a %.1f rad/s turn at %.1f m/s"
+				% [rad_to_deg(player._pivot.rotation.z), float(gait.turn),
+				Vector3(player.velocity.x, 0, player.velocity.z).length()])
 		if shot >= int(gait.get("shots", SHOTS)):
 			print("%-10s at %.1f m/s" % [gait.name, gait.speed])
 			at += 1

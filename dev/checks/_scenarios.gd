@@ -118,8 +118,12 @@ func _done(result: Dictionary) -> void:
 		if inc == null:
 			print("     why: no incident of the right kind ever happened")
 		else:
-			print("     why: %s  whistled=%s at %.1f (%.1f s after it), restart=%s to %s, cards=%d, advantage=%s"
-				% [inc.label(), inc.whistled, inc.whistle_time, inc.whistle_time - inc.time,
+			# must_stop is the field that says whether the referee had a choice: a foul the
+			# Laws let him play on from is a different failure from one he simply missed.
+			print("     why: %s  must_stop=%s severity=%d key=%s"
+				% [inc.label(), inc.must_stop, inc.severity, inc.key])
+			print("     whistled=%s at %.1f (%.1f s after it), restart=%s to %s, cards=%d, advantage=%s"
+				% [inc.whistled, inc.whistle_time, inc.whistle_time - inc.time,
 				inc.restart_given if inc.restart_given != &"" else "none",
 				inc.restart_team.short if inc.restart_team != null else "-",
 				inc.cards_given.size(), inc.advantage])
@@ -128,7 +132,9 @@ func _done(result: Dictionary) -> void:
 			# An assistant's flag is the other half of several of these drills, and it can
 			# go up, be answered, be waved down or be given up on.
 			if run.m.assessor.flags.is_empty():
-				print("     no flag was ever raised")
+				# The assessor only hears about a flag once it is answered, so this means
+				# none was resolved — one may still have gone up and stayed up.
+				print("     no flag was ever answered; one is up now: %s" % not run.m.flag.is_empty())
 			for f in run.m.assessor.flags:
 				print("     flag %s at %.1f: accepted=%s ignored=%s for %s"
 					% [f.flag.get("kind", "?"), f.time, f.accepted, f.get("ignored", false),

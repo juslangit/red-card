@@ -38,6 +38,7 @@ const CLIPS := {
 	"throw_in": ["fb_throw_in", "st_throw"],
 	"keeper_ready": ["fb_keeper_ready", "vb_ready"],
 	"keeper_dive": ["fb_keeper_dive", "vb_dig"],
+	"keeper_dive_right": ["fb_keeper_dive_right", "fb_keeper_dive", "vb_dig"],
 	"keeper_catch": ["fb_keeper_catch", "vb_set"],
 	"keeper_throw": ["fb_keeper_throw", "st_throw"],
 	"fall": ["fb_fall", "idle"],
@@ -66,6 +67,8 @@ const CLIP_SPEED := {"walk": 1.58, "run": 2.81, "sprint": 3.43, "backpedal": 2.6
 ## as he can, and when the attacker goes past that he turns and chases. Leaving it out is
 ## what had players gliding sideways across the pitch at full pace.
 const BACKPEDAL_LIMIT := 4.0
+## Below this much left in the legs, a player standing still shows it.
+const TIRED_BELOW := 0.74
 const SIDESTEP_LIMIT := 3.0
 ## Above this, the legs change from Meshy's jog to the harder-swinging sprint.
 const SPRINT_FROM := 4.8
@@ -116,6 +119,8 @@ var _anim: AnimationPlayer
 var _clip := ""
 var _rate := 1.0
 var _running := false
+## How far he is leaning into the turn he is making, in radians.
+var _bank := 0.0
 var arms: ArmPoser
 var skeleton: Skeleton3D
 
@@ -259,6 +264,19 @@ func _resolve(meaning: String) -> String:
 		if _anim.has_animation(name):
 			return name
 	return ""
+
+
+## A keeper throwing himself at the ball rather than toppling over where he stands, which
+## is what he used to do: a save out of reach called `fall()`. The clip is chosen by which
+## hand the ball is on, and he carries real speed across the goal so the dive covers ground.
+func dive_at(at: Vector3, seconds := 1.4) -> void:
+	var across := at - global_position
+	across.y = 0.0
+	if across.length() < 0.05:
+		across = Vector3.UP.cross(heading)
+	var to_his_left := across.dot(Vector3.UP.cross(heading)) > 0.0
+	one_shot("keeper_dive" if to_his_left else "keeper_dive_right", seconds)
+	velocity = across.normalized() * clampf(across.length() / 0.45, 3.5, 9.0)
 
 
 ## A clip that plays once and hands the body back, like a kick or a tackle.
@@ -454,14 +472,28 @@ func _face(delta: float) -> void:
 	elif velocity.length() > 0.4:
 		look = velocity
 	look.y = 0.0
+	var turned := 0.0
 	if look.length() > 0.05 and state != State.FALLEN:
 		var target := look.normalized()
 		var angle := heading.signed_angle_to(target, Vector3.UP)
-		var turn := clampf(angle, -9.0 * delta, 9.0 * delta)
+		# Nobody turns on a sixpence at seven metres a second. The faster he is going, the
+		# wider the arc he has to take — which is why players used to pivot on the spot
+		# while still playing a forward running clip.
+		var rate := lerpf(11.0, 2.7, clampf(Vector3(velocity.x, 0, velocity.z).length() / maxf(pace, 0.1), 0.0, 1.0))
+		var turn := clampf(angle, -rate * delta, rate * delta)
+		turned = turn / maxf(delta, 0.0001)
 		heading = heading.rotated(Vector3.UP, turn).normalized()
 	if heading.length() > 0.01:
 		var basis := Basis.looking_at(heading, Vector3.UP)
 		transform.basis = basis
+	# And he leans into the turn, like anybody running round a bend. It eases in and out
+	# so a flick of the head does not throw the body over.
+	# Into the bend, not out of it. Turning left is a positive rotation about up, and a
+	# positive roll on the pivot drops his left shoulder, so the two share a sign.
+	var want_bank := clampf(turned * Vector3(velocity.x, 0, velocity.z).length() * 0.022, -0.3, 0.3)
+	_bank = move_toward(_bank, want_bank, delta * 2.4)
+	if state != State.FALLEN and _fall_amount <= 0.0:
+		_pivot.rotation.z = _bank
 
 
 func _animate() -> void:
@@ -487,8 +519,15 @@ func _animate() -> void:
 	if speed < 0.35:
 		if official:
 			play("stand_still", 0.25)
+		elif is_keeper() and state == State.PLAY:
+			play("keeper_ready", 0.25)
+		elif stamina < TIRED_BELOW:
+			# Ninety minutes in the legs: hands down, blowing. The stamina that decides
+			# this is the same one that has been slowing him down all match, so the body
+			# says what the numbers have been doing.
+			play("tired", 0.4)
 		else:
-			play("keeper_ready" if is_keeper() and state == State.PLAY else "idle", 0.25)
+			play("idle", 0.25)
 		return
 	var along := heading.dot(velocity / speed)
 	# The gait only changes at the edges of a band, so a player hovering around the

@@ -72,5 +72,23 @@ func _process(delta: float) -> void:
 		elapsed = 0.0
 		_still = 0.0
 		if at >= GAITS.size():
+			_standing_still()
 			print("%d clip problem(s)" % bad)
 			get_tree().quit(1 if bad > 0 else 0)
+
+
+## What a body does when it stops. A player with ninety minutes in his legs stands
+## differently from one who has just come on, and until 2026-09-20 the clip that says so
+## was in the model and never played.
+func _standing_still() -> void:
+	for stamina: float in [1.0, 0.6]:
+		body.stamina = stamina
+		body.velocity = Vector3.ZERO
+		body.puppet(Vector3.ZERO, Vector3.FORWARD)
+		var want := "tired" if stamina < Footballer.TIRED_BELOW else "idle"
+		var clip: String = body._clip
+		var right: bool = clip in Footballer.CLIPS[want]
+		if not right:
+			bad += 1
+		print("%s standing with %.0f%% left plays %s, wanted %s"
+			% ["    " if right else "BAD ", stamina * 100.0, clip, want])

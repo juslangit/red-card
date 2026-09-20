@@ -873,9 +873,12 @@ func _save_attempt(gk: Footballer) -> bool:
 	chance -= clampf((reach - 1.0) / cover, 0.0, 1.0) * 0.55
 	var saved := reach < cover and _rng.randf() < chance
 	if reach > 1.0:
-		gk.fall(Vector3(0, 0, signf(cross.z - gk.global_position.z)), 1.4)
+		# Out of reach standing up: he goes for it. This used to be `fall()`, which tipped
+		# him over on the spot — the one moment of a match everybody watches, and the
+		# keeper was falling down rather than diving.
+		gk.dive_at(Vector3(gk.global_position.x, 0.0, cross.z), 1.4)
 	else:
-		gk.one_shot("keeper_catch", 0.6)
+		gk.one_shot("keeper_catch", 0.7)
 	if saved:
 		stats.saves += 1
 		_pending_save = {"gk": gk, "at": cross, "left": maxf(t - 0.05, 0.0), "catch": b.speed() < 22.0 and reach < 1.2 and _rng.randf() < 0.6}

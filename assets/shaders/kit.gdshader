@@ -46,6 +46,12 @@ instance uniform float highlight = 0.0;
 // outrun. The part map already knows which texels are the head, so the head is cut for
 // being the head — no radius to get wrong, and no pose or dropped frame can defeat it.
 instance uniform float hide_head = 0.0;
+// `hide_head` is only ever set on the body the camera lives in, and that body has one other
+// problem: it is thirty centimetres from the lens. A forearm held up across the screen
+// catches the full sun and blows out to white, where the same arm on a player twenty metres
+// away looks fine. First-person games have always dimmed the hands for this; so does this
+// one, on that body alone.
+const float OWN_BODY_DIM = 0.66;
 // The shirt number: x the tens digit (-1 when there is none), y the units, z 1 for a dark
 // number on a light shirt. Packed into one parameter because a shader may only carry so
 // many per instance.
@@ -106,9 +112,14 @@ void fragment() {
 	// Bare skin is painted rather than taken from the texture wherever Meshy's own kit ran:
 	// its sleeves reach further down the arm than a football sleeve does, and its gloves
 	// cover the hands. Both would otherwise show through as red bands and black mitts.
-	// Bare skin takes only a little of the texture's shading: Meshy's gloves and sleeves are
-	// dark, and following their shading closely left grey hands.
-	vec3 bare = vec3(0.80, 0.62, 0.52) * skin_tone * mix(1.0, folds(hsv.z, 0.62), 0.35);
+	//
+	// It keeps most of the texture's shading. At a third of it the arm had no form at all,
+	// which nobody notices on a player thirty metres away and everybody notices on their
+	// own forearm held up across the screen — it read as a pale balloon. The brightness it
+	// is measured against is Meshy's dark glove, so the shading is re-centred on that
+	// before it is applied, or the whole arm would come out grey.
+	vec3 bare = vec3(0.78, 0.60, 0.50) * skin_tone
+		* mix(1.0, clamp(folds(hsv.z, 0.62) * 1.12, 0.62, 1.30), 0.85);
 	float hand = is_part(id, HAND);
 	float lower_arm = is_part(id, ARM) * smoothstep(SLEEVE_END, SLEEVE_END + 0.04, along);
 	col = mix(col, bare, clamp(hand + lower_arm, 0.0, 1.0));
@@ -189,7 +200,7 @@ void fragment() {
 		shown = key * (0.45 + 0.55 * along);
 		rough = 1.0;
 	}
-	ALBEDO = shown;
-	ROUGHNESS = rough;
+	ALBEDO = shown * mix(1.0, OWN_BODY_DIM, step(0.5, hide_head));
+	ROUGHNESS = max(rough, step(0.5, hide_head));
 	EMISSION = vec3(highlight) * vec3(1.0, 0.85, 0.3);
 }

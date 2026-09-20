@@ -717,6 +717,10 @@ func _tackle(defender: Footballer, attacker: Footballer, sliding: bool) -> void:
 	# Long enough for the clip: the standing tackle plants, reaches and recovers over
 	# about a second, and cutting it at 0.45 s snapped the leg back mid-lunge.
 	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.8)
+	# You hear the contact where it happened, and how hard it was. A referee listens for
+	# this as much as he watches for it.
+	m.sound.contact(attacker.global_position + Vector3(0, 0.4, 0),
+		(0.75 if sliding else 0.45) + defender.aggression * 0.25)
 	if sliding:
 		defender.velocity = (attacker.global_position - defender.global_position).normalized() * 6.5
 	# From behind: the attacker is facing away from the tackler.
@@ -748,6 +752,10 @@ func force_foul(defender: Footballer, attacker: Footballer, severity: Laws.Sever
 	# Long enough for the clip: the standing tackle plants, reaches and recovers over
 	# about a second, and cutting it at 0.45 s snapped the leg back mid-lunge.
 	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.8)
+	# You hear the contact where it happened, and how hard it was. A referee listens for
+	# this as much as he watches for it.
+	m.sound.contact(attacker.global_position + Vector3(0, 0.4, 0),
+		(0.75 if sliding else 0.45) + defender.aggression * 0.25)
 	_foul(defender, attacker, sliding, behind, severity, 1 if stays_up else 0)
 
 

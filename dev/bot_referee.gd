@@ -50,10 +50,17 @@ func _physics_process(delta: float) -> void:
 		return
 	_think = 0.35
 	match m.phase:
+		Match.Phase.PRE_MATCH:
+			# Somebody has to toss it.
+			if not m.toss_done:
+				m.toss_coin()
 		Match.Phase.KICK_OFF:
 			if m.ai.set_piece_ready:
 				m.whistle()
 		Match.Phase.SET_PIECE:
+			# Wave away whoever has come to argue before restarting. This is where a
+			# protest actually happens: play is already stopped and the kick is being set.
+			m.calm_protests(ref.global_position, 7.0)
 			if m.restart_needs_whistle and m.ai.set_piece_ready:
 				m.whistle()
 		Match.Phase.LIVE:
@@ -125,6 +132,18 @@ func _physics_process(delta: float) -> void:
 					m.whistle()
 					return
 		Match.Phase.STOPPED, Match.Phase.GOAL:
+			# Deal with the players before getting on with the restart. They take a moment
+			# to reach him, so he waits for them rather than restarting into a protest —
+			# which is what a referee does, and what he is marked on.
+			var coming := false
+			for p: Footballer in m.players:
+				if p.on_pitch and p.state == Footballer.State.PROTESTING \
+						and p.global_position.distance_to(ref.global_position) < 14.0:
+					coming = true
+					break
+			if coming:
+				if m.calm_protests(ref.global_position, 7.0) == 0:
+					return    # still walking in; give them a second
 			if not m.sub_request.is_empty():
 				m.allow_substitution()
 			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:

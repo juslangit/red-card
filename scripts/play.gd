@@ -53,6 +53,9 @@ func _ready() -> void:
 	report_screen.play = self
 	add_child(report_screen)
 
+	# A match begins with the toss; a drill or a challenge begins wherever it begins.
+	if not config.has("scenario"):
+		m.begin_coin_toss()
 	m.phase_changed.connect(_on_phase)
 	if m.var_system != null:
 		m.var_system.review_requested.connect(_on_review)

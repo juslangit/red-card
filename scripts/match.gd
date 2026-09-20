@@ -223,6 +223,10 @@ func _physics_process(delta: float) -> void:
 			if ready and not restart_needs_whistle and not var_hold:
 				_take_restart()
 			ai._separate()
+			# A protest happens while the restart is being set up, not while play is
+			# stopped, so the men who want a word with you come and have it here — the set
+			# piece can wait, which is exactly why a referee has to deal with them.
+			_protesters_come_to_you()
 		Phase.HALF_TIME, Phase.FULL_TIME, Phase.PRE_MATCH:
 			_idle_players(delta)
 	for p: Footballer in players:
@@ -295,9 +299,38 @@ func allow_substitution() -> void:
 	sub_request = {}
 
 
+## Anybody arguing walks to the referee and argues at him, whatever else the AI has them
+## down to be doing.
+func _protesters_come_to_you() -> void:
+	if referee == null:
+		return
+	for p: Footballer in players:
+		if not p.on_pitch or p.state != Footballer.State.PROTESTING:
+			continue
+		var to_ref: Vector3 = referee.global_position - p.global_position
+		if to_ref.length() > 1.8:
+			p.goal = referee.global_position - to_ref.normalized() * 1.6
+			p.hurry = 0.7
+		else:
+			p.goal = p.global_position
+		p.face_point = referee.global_position
+
+
 func _idle_players(_delta: float) -> void:
 	for p: Footballer in players:
 		if not p.can_move():
+			continue
+		# The captains come to the referee for the toss, not to the centre spot — and they
+		# keep coming if he wanders off, the way they do on a Sunday morning.
+		if phase == Phase.PRE_MATCH and p in captains and referee != null:
+			var facing: Vector3 = -referee.global_transform.basis.z
+			facing.y = 0.0
+			facing = facing.normalized() if facing.length() > 0.01 else Vector3.FORWARD
+			var across := facing.cross(Vector3.UP)
+			var side := -1.0 if captains.find(p) == 0 else 1.0
+			p.goal = referee.global_position + facing * 2.0 + across * side * 0.9
+			p.hurry = 0.9
+			p.face_point = referee.global_position
 			continue
 		if p.state == Footballer.State.PROTESTING and referee != null:
 			var to_ref: Vector3 = referee.global_position - p.global_position
@@ -386,12 +419,17 @@ func _settle_ref_touch(by: Node, kind: StringName) -> void:
 func _on_incident(incident: Incident) -> void:
 	recorder.mark(incident.kind)
 	if incident.kind in [&"foul", &"holding", &"handball"] and incident.victim != null:
-		# The fouled side appeals: an arm up from the nearest teammate.
+		# The fouled side appeals: an arm up from the nearest teammate, and his voice.
 		var appealer: Footballer = incident.victim
 		captions.say(appealer, "REF!", appealer.team.shirt)
+		sound.shout(appealer.global_position + Vector3(0, 1.6, 0))
 		if appealer.state == Footballer.State.PLAY:
 			appealer.arms.set_right(Vector3(0, 1, 0.2), Vector3.ZERO, 1.0)
 			get_tree().create_timer(1.2).timeout.connect(func(): if is_instance_valid(appealer): appealer.arms.release_right())
+		# And if it was an ugly one, the crowd has a few seconds to see whether anything
+		# is given before it lets the referee know what it thought.
+		if incident.severity >= Laws.Severity.RECKLESS:
+			get_tree().create_timer(1.6).timeout.connect(func(): _crowd_saw_that(incident))
 
 
 ## A player hurt badly enough to stay down: the truth is that play should stop.
@@ -799,6 +837,82 @@ func redo_restart(type: StringName, to: Team, where: Vector3) -> void:
 	decision_made.emit(_restart_words(type, to), true)
 
 
+# --- before a ball is kicked -------------------------------------------------------------
+
+## The two captains meet you in the centre circle for the toss. Law 8: the toss is made,
+## the side that wins it chooses which goal to attack, and the other side kicks off.
+##
+## It is also the only moment in a match when a referee meets the players as people rather
+## than as offences, which is why the handshake animation had been sitting in the model
+## since the clips were written with nowhere to happen.
+var toss_done := false
+var captains: Array = []
+
+
+func begin_coin_toss() -> void:
+	if toss_done:
+		return
+	_set_phase(Phase.PRE_MATCH)
+	captains.clear()
+	for team in teams:
+		var chosen: Footballer = null
+		for p: Footballer in team.on_field():
+			# The captain is the outfielder wearing the lowest number, which is as good a
+			# rule as any and stops it changing from match to match.
+			if p.is_keeper():
+				continue
+			if chosen == null or p.number < chosen.number:
+				chosen = p
+		if chosen != null:
+			captains.append(chosen)
+	# They walk in to the middle and wait on either side of you.
+	for i in captains.size():
+		var p: Footballer = captains[i]
+		ai.held[p] = true
+		p.state = Footballer.State.PLAY
+		p.goal = p.global_position
+		p.hurry = 0.9
+
+
+## Both captains with you, near enough to toss in front of. One of them always starts the
+## match further away than the other, and tossing a coin at an empty circle looks silly.
+func captains_ready() -> bool:
+	if referee == null or captains.size() < 2:
+		return true
+	for p: Footballer in captains:
+		if p.global_position.distance_to(referee.global_position) > 3.4:
+			return false
+	return true
+
+
+## You toss it. Somebody wins, they take the end they want, and the other side kicks off.
+func toss_coin() -> void:
+	if phase != Phase.PRE_MATCH or toss_done or not captains_ready():
+		return
+	toss_done = true
+	var winner: Team = teams[randi() % 2]
+	var loser: Team = teams[1] if winner == teams[0] else teams[0]
+	# A side that wins the toss and fancies the other end takes it, and the teams swap.
+	if randf() < 0.45:
+		for team in teams:
+			team.attack = -team.attack
+		for p: Footballer in players:
+			p.global_position.x = -p.global_position.x
+		message.emit("%s win the toss and change ends" % winner.name, 4.0)
+	else:
+		message.emit("%s win the toss and keep this end" % winner.name, 4.0)
+	for p: Footballer in captains:
+		p.one_shot("shake", 1.2)
+		captions.say(p, "GOOD LUCK", p.team.shirt)
+		ai.held.erase(p)
+	sound.cheer()
+	# A moment for the handshake, then everybody to their half.
+	get_tree().create_timer(2.4).timeout.connect(func():
+		if phase == Phase.PRE_MATCH:
+			kick_off_team = loser
+			_line_up_for_kick_off(loser))
+
+
 func _line_up_for_kick_off(team: Team) -> void:
 	for p: Footballer in players:
 		p.calm()
@@ -877,11 +991,15 @@ func _react_to(incident: Incident) -> void:
 	if referee == null:
 		return
 	protesters.sort_custom(func(a, b): return a.global_position.distance_to(referee.global_position) < b.global_position.distance_to(referee.global_position))
+	assessor.note_protest()
 	for i in mini(count, protesters.size()):
 		var p: Footballer = protesters[i]
 		p.protest(4.0 + i)
 		if i == 0:
 			captions.say(p, "REF!!" if verdict < 0 else "REF!", p.team.shirt)
+			# You hear them as well as see them, and from where they are: a protest behind
+			# your back is the one you need telling about.
+			sound.shout(p.global_position + Vector3(0, 1.6, 0), count > 1)
 		if verdict < 0 and p.aggression > 0.7 and i == 0 and randf() < 0.5:
 			laws.dissent(p)
 			p.set_meta("dissent", clock)
@@ -889,6 +1007,36 @@ func _react_to(incident: Incident) -> void:
 		sound.boo(aggrieved == teams[0])
 	else:
 		sound.crowd_reacts(0.3)
+
+
+## A bad challenge that nobody stopped. The crowd sees what the referee missed, and says
+## so — which is the only warning a referee gets that he has got one wrong while there is
+## still a match to save.
+func _crowd_saw_that(incident: Incident) -> void:
+	if sound == null or incident == null:
+		return
+	if incident.severity >= Laws.Severity.RECKLESS and not incident.whistled:
+		sound.gasp()
+
+
+## The referee waves them away and has a word. Everybody protesting within reach gets on
+## with the game; the assessor is told, because managing a protest is refereeing and
+## letting one run is not.
+func calm_protests(from: Vector3, radius: float) -> int:
+	var calmed := 0
+	for p: Footballer in players:
+		if not p.on_pitch or p.state != Footballer.State.PROTESTING:
+			continue
+		if p.global_position.distance_to(from) > radius:
+			continue
+		p.calm()
+		calmed += 1
+		if calmed == 1:
+			captions.say(p, "ALRIGHT, REF", p.team.shirt)
+	if calmed > 0:
+		assessor.note_managed(calmed)
+		message.emit("You wave them away", 2.0)
+	return calmed
 
 
 func sound_kick(where: Vector3, speed: float) -> void:

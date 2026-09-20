@@ -99,6 +99,23 @@ func note_flag(flag: Dictionary, accepted: bool, ignored := false) -> void:
 	flags.append({"flag": flag, "accepted": accepted, "ignored": ignored, "correct": flag.get("incident") != null, "time": m.clock})
 
 
+## Protests: how many broke out, and how many you dealt with rather than walked away from.
+var protests := 0
+var protests_managed := 0
+
+
+func note_protest() -> void:
+	protests += 1
+
+
+func note_managed(players_calmed: int) -> void:
+	protests_managed += 1
+	_players_calmed += players_calmed
+
+
+var _players_calmed := 0
+
+
 func note_advantage(incident: Incident) -> void:
 	advantage_calls.append({"incident": incident, "time": m.clock})
 
@@ -191,6 +208,19 @@ func finish() -> void:
 		elif over > owed + 2.0:
 			mark -= 0.05
 			lines.append({"incident": null, "text": "Half %d ran %.1f minutes over the time owed" % [t.half, over - owed], "points": -0.05, "key": false})
+	# Control. A protest you wave away is over; one you ignore is where a player says the
+	# thing you then have to caution him for. Both are refereeing, and only one of them is
+	# in the Laws.
+	if protests > 0:
+		var handled := float(protests_managed) / float(protests)
+		if handled >= 0.6:
+			mark += 0.08
+			lines.append({"incident": null, "key": false, "points": 0.08,
+				"text": "You dealt with %d of the %d protests — players got on with it" % [protests_managed, protests]})
+		elif handled < 0.25 and protests >= 3:
+			mark -= 0.1
+			lines.append({"incident": null, "key": false, "points": -0.1,
+				"text": "%d protests and you waved none of them away — let them surround you and they will" % protests})
 	for e in empty_stops:
 		mark -= 0.1
 	for sub in subs:
@@ -208,6 +238,8 @@ func finish() -> void:
 		"trail": trail,
 		"distance_km": _distance_run / 1000.0 * m.clock_scale(),
 		"cards": cards.size(),
+		"protests": protests,
+		"protests_managed": protests_managed,
 	}
 
 

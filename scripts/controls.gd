@@ -38,6 +38,7 @@ const DEFAULTS := {
 	&"rc_indirect": {"keys": [KEY_Q], "buttons": [JOY_BUTTON_LEFT_SHOULDER], "label": "Arm up — indirect free kick"},
 	&"rc_drop": {"keys": [KEY_B], "buttons": [JOY_BUTTON_DPAD_RIGHT], "label": "Dropped ball"},
 	&"rc_sub": {"keys": [KEY_U], "buttons": [JOY_BUTTON_B], "label": "Allow substitution"},
+	&"rc_calm": {"keys": [KEY_C], "buttons": [JOY_BUTTON_Y], "label": "Calm them down — a word, and back off"},
 	&"rc_watch": {"keys": [KEY_TAB], "buttons": [JOY_BUTTON_BACK], "label": "Look at your watch (hold)"},
 	&"rc_notebook": {"keys": [KEY_N], "buttons": [JOY_BUTTON_RIGHT_STICK], "label": "Notebook"},
 	# Turning your head without a mouse. The stick is read straight from the pad's right
@@ -49,7 +50,7 @@ const DEFAULTS := {
 }
 
 const ORDER := [&"rc_whistle", &"rc_point", &"rc_advantage", &"rc_yellow", &"rc_red",
-	&"rc_wave", &"rc_indirect", &"rc_drop", &"rc_sub", &"rc_watch", &"rc_notebook",
+	&"rc_wave", &"rc_indirect", &"rc_drop", &"rc_sub", &"rc_calm", &"rc_watch", &"rc_notebook",
 	&"rc_sprint", &"rc_forward", &"rc_back", &"rc_left", &"rc_right",
 	&"rc_look_left", &"rc_look_right", &"rc_look_up", &"rc_look_down"]
 

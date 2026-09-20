@@ -204,7 +204,8 @@ const LEGEND := [
 	[&"rc_advantage", "Advantage"], [&"rc_wave", "Wave down"],
 	[&"rc_yellow", "Yellow"], [&"rc_red", "Red"],
 	[&"rc_indirect", "Indirect"], [&"rc_drop", "Drop ball"],
-	[&"rc_watch", "Watch"], [&"rc_notebook", "Notes"],
+	[&"rc_calm", "Calm them"], [&"rc_watch", "Watch"],
+	[&"rc_notebook", "Notes"],
 ]
 
 
@@ -369,6 +370,12 @@ func _place(control: Control, at: Vector2, centred: bool) -> void:
 ## on screen: this says what to do, not which key does it.
 func _hint_text() -> String:
 	match m.phase:
+		Match.Phase.PRE_MATCH:
+			if m.toss_done:
+				return "Captains heading back"
+			if not m.captains_ready():
+				return "The captains are coming in for the toss"
+			return "The captains are with you — point to toss the coin"
 		Match.Phase.KICK_OFF:
 			return "Whistle to kick off" if m.ai.set_piece_ready else "Players taking their places"
 		Match.Phase.SET_PIECE:

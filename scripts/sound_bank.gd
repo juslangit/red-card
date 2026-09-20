@@ -13,6 +13,13 @@ const WHISTLE_LONG := "res://assets/audio/whistle_long.wav"
 const KICKS := ["res://assets/audio/kick_1.wav", "res://assets/audio/kick_2.wav", "res://assets/audio/kick_3.wav"]
 const STEPS := ["res://assets/audio/steps/grass_1.wav", "res://assets/audio/steps/grass_2.wav",
 	"res://assets/audio/steps/grass_3.wav", "res://assets/audio/steps/grass_4.wav"]
+## Bodies meeting. A tackle used to borrow the sound of a boot on the ball, which is the
+## one sound a referee must never confuse it with: whether there was contact, and how much,
+## is most of what he is judging.
+const CONTACT := ["res://assets/audio/contact/contact_1.wav", "res://assets/audio/contact/contact_2.wav"]
+## A player appealing, and a team appealing.
+const SHOUT_ONE := "res://assets/audio/voices/shout_one.wav"
+const SHOUT_MANY := "res://assets/audio/voices/shout_many.wav"
 
 var _bed: AudioStreamPlayer
 var _swell: AudioStreamPlayer
@@ -85,8 +92,36 @@ func kick(where: Vector3, speed: float) -> void:
 	k.play()
 
 
+## Contact in a tackle, heard where it happened. `force` is 0 for a brush and 1 for a
+## clattering: it picks the heavier sound and plays it louder.
+func contact(where: Vector3, force := 0.5) -> void:
+	var at := _kicks[_next_kick]
+	_next_kick = (_next_kick + 1) % _kicks.size()
+	at.stream = _load(CONTACT[0] if force > 0.55 else CONTACT[1])
+	at.global_position = where
+	at.pitch_scale = randf_range(0.92, 1.08)
+	at.volume_db = lerpf(-9.0, 2.0, clampf(force, 0.0, 1.0))
+	at.play()
+
+
+## Somebody shouting at you. `many` is a whole team appealing rather than one player.
+func shout(where: Vector3, many := false) -> void:
+	var at := _kicks[_next_kick]
+	_next_kick = (_next_kick + 1) % _kicks.size()
+	at.stream = _load(SHOUT_MANY if many else SHOUT_ONE)
+	at.global_position = where
+	at.pitch_scale = randf_range(0.88, 1.06)
+	at.volume_db = -3.0 if many else -6.0
+	at.play()
+
+
+## The noise a crowd makes at something ugly that was not given.
+func gasp() -> void:
+	_swell_with("res://assets/audio/crowd/gasp.wav", 0.5 + _crowd_size * 0.5)
+
+
 func thud(where: Vector3) -> void:
-	kick(where, 8.0)
+	contact(where, 0.35)
 
 
 func step() -> void:

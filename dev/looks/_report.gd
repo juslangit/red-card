@@ -60,5 +60,9 @@ func _process(delta: float) -> void:
 	screen.play = stand_in
 	add_child(screen)
 	screen.open(m.assessor.report, "")
+	print("protests %d, waved away %d" % [m.assessor.protests, m.assessor.protests_managed])
+	for line in m.assessor.report.lines:
+		if line.incident == null:
+			print("   report line: %s (%+.2f)" % [line.text, line.points])
 	print("mark %.1f, %d decisions, trail of %d points"
 		% [m.assessor.report.mark, m.assessor.report.lines.size(), m.assessor.report.trail.size()])

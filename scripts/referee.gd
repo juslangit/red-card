@@ -237,6 +237,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		dropped_ball()
 	elif event.is_action_pressed(&"rc_sub"):
 		m.allow_substitution()
+	elif event.is_action_pressed(&"rc_calm"):
+		calm_them()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var key := (event as InputEventKey).keycode
 		if key >= KEY_1 and key <= KEY_9 and m.added_announced >= 0 and m.level.fourth_official:
@@ -383,6 +385,8 @@ func look_direction() -> Vector3:
 ## What pointing now would give. The prompt under the crosshair shows this all the time,
 ## so the player knows what their arm says before they raise it.
 func interpret_point() -> Dictionary:
+	if m.phase == Match.Phase.PRE_MATCH and not m.toss_done and m.captains_ready():
+		return {"type": &"toss", "team": null, "label": "TOSS THE COIN"}
 	if m.phase not in [Match.Phase.STOPPED, Match.Phase.GOAL]:
 		return {}
 	var look := look_direction()
@@ -439,9 +443,26 @@ func point() -> void:
 	if not meaning.has("type"):
 		return
 	pointed.emit(meaning)
+	if meaning.type == &"toss":
+		m.toss_coin()
+		return
 	m.award(meaning.type, meaning.team)
 	if indirect_arm:
 		indirect_arm = false
+
+
+## A word and a hand: the players crowding you are waved back and told to get on with it.
+##
+## Refereeing is not only decisions. A protest you deal with is over; one you ignore grows,
+## and somewhere in it a player says the thing that has to be cautioned. The assessor marks
+## you on both — which is the part of the job no football game had bothered with.
+func calm_them() -> void:
+	var f := _forward()
+	var out := Vector3(0, -0.35, 0)
+	body.arms.set_right(body.arms.to_model((f + out + f.cross(Vector3.UP) * 0.55).normalized()), Vector3.ZERO, 1.0)
+	body.arms.set_left(body.arms.to_model((f + out - f.cross(Vector3.UP) * 0.55).normalized()), Vector3.ZERO, 1.0)
+	_signal_left = 1.3
+	m.calm_protests(global_position, 7.0)
 
 
 func advantage() -> void:

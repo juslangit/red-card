@@ -77,7 +77,7 @@ func _controls() -> Control:
 	box.add_child(UiTheme.label("THE REFEREE'S CONTROLS", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	var lines := [
 		["WASD", "Move · Shift to sprint"],
-		["Mouse", "Look — look down to see your body"],
+		["Mouse · ← ↑ ↓ →", "Look — look down to see your body"],
 	]
 	for action in [&"rc_whistle", &"rc_point", &"rc_advantage", &"rc_yellow", &"rc_red", &"rc_wave",
 			&"rc_indirect", &"rc_drop", &"rc_sub", &"rc_watch", &"rc_notebook"]:
@@ -86,7 +86,7 @@ func _controls() -> Control:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 20)
 		var key := UiTheme.label(line[0], UiTheme.BODY, UiTheme.CHALK, UiTheme.heavy())
-		key.custom_minimum_size = Vector2(170, 0)
+		key.custom_minimum_size = Vector2(250, 0)
 		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.add_child(key)
 		var meaning := Menus.text(line[1], UiTheme.SMALL, UiTheme.MUTED)

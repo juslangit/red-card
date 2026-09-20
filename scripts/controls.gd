@@ -8,9 +8,17 @@ extends RefCounted
 ## rebound from the settings screen without two verbs ending up on one key.
 ##
 ## The referee's body is the controller here. Moving is WASD and the left stick; looking
-## is the mouse and the right stick. The two most important verbs sit under the fingers
-## that are already on the mouse: the whistle is the left button and pointing is the
-## right, because a referee's whole vocabulary is a whistle and an arm.
+## is the mouse, the right stick or the arrow keys. The two most important verbs sit under
+## the fingers that are already on the mouse: the whistle is the left button and pointing
+## is the right, because a referee's whole vocabulary is a whistle and an arm.
+##
+## Every one of them is also on a key. Luqman played it on 2026-09-20 and asked for the
+## game to be keyboard friendly rather than mouse-only, and he was right: the whistle and
+## the point were on the mouse buttons alone, and looking around — which pointing depends
+## on, since you give the restart you are looking at — could only be done with a mouse.
+## Whistle is F and point is E, both beside the hand already on WASD, and the arrow keys
+## turn your head. dev/checks/_controls.tscn holds it to that: every verb reachable from
+## the keyboard, and no two verbs on one key.
 
 const UNBOUND := 0
 
@@ -21,8 +29,8 @@ const DEFAULTS := {
 	&"rc_left": {"keys": [KEY_A], "axes": [[JOY_AXIS_LEFT_X, -1.0]], "label": "Move left"},
 	&"rc_right": {"keys": [KEY_D], "axes": [[JOY_AXIS_LEFT_X, 1.0]], "label": "Move right"},
 	&"rc_sprint": {"keys": [KEY_SHIFT], "buttons": [JOY_BUTTON_LEFT_STICK], "axes": [[JOY_AXIS_TRIGGER_LEFT, 1.0]], "label": "Sprint"},
-	&"rc_whistle": {"mouse": [MOUSE_BUTTON_LEFT], "buttons": [JOY_BUTTON_A], "label": "Whistle (hold: long whistle)"},
-	&"rc_point": {"mouse": [MOUSE_BUTTON_RIGHT], "buttons": [JOY_BUTTON_RIGHT_SHOULDER], "label": "Point — give the restart you are pointing at"},
+	&"rc_whistle": {"keys": [KEY_F], "mouse": [MOUSE_BUTTON_LEFT], "buttons": [JOY_BUTTON_A], "label": "Whistle (hold: long whistle)"},
+	&"rc_point": {"keys": [KEY_E], "mouse": [MOUSE_BUTTON_RIGHT], "buttons": [JOY_BUTTON_RIGHT_SHOULDER], "label": "Point — give the restart you are pointing at"},
 	&"rc_advantage": {"keys": [KEY_SPACE], "buttons": [JOY_BUTTON_X], "label": "Advantage — play on"},
 	&"rc_yellow": {"keys": [KEY_Y], "buttons": [JOY_BUTTON_DPAD_UP], "label": "Yellow card"},
 	&"rc_red": {"keys": [KEY_R], "buttons": [JOY_BUTTON_DPAD_DOWN], "label": "Red card"},
@@ -32,11 +40,18 @@ const DEFAULTS := {
 	&"rc_sub": {"keys": [KEY_U], "buttons": [JOY_BUTTON_B], "label": "Allow substitution"},
 	&"rc_watch": {"keys": [KEY_TAB], "buttons": [JOY_BUTTON_BACK], "label": "Look at your watch (hold)"},
 	&"rc_notebook": {"keys": [KEY_N], "buttons": [JOY_BUTTON_RIGHT_STICK], "label": "Notebook"},
+	# Turning your head without a mouse. The stick is read straight from the pad's right
+	# axis in Referee, which is why these carry no axes of their own.
+	&"rc_look_left": {"keys": [KEY_LEFT], "label": "Look left"},
+	&"rc_look_right": {"keys": [KEY_RIGHT], "label": "Look right"},
+	&"rc_look_up": {"keys": [KEY_UP], "label": "Look up"},
+	&"rc_look_down": {"keys": [KEY_DOWN], "label": "Look down"},
 }
 
 const ORDER := [&"rc_whistle", &"rc_point", &"rc_advantage", &"rc_yellow", &"rc_red",
 	&"rc_wave", &"rc_indirect", &"rc_drop", &"rc_sub", &"rc_watch", &"rc_notebook",
-	&"rc_sprint", &"rc_forward", &"rc_back", &"rc_left", &"rc_right"]
+	&"rc_sprint", &"rc_forward", &"rc_back", &"rc_left", &"rc_right",
+	&"rc_look_left", &"rc_look_right", &"rc_look_up", &"rc_look_down"]
 
 
 static func ensure(settings: Settings = null) -> void:
@@ -90,25 +105,31 @@ static func _key_of(settings: Settings, action: StringName) -> Key:
 	return (keys[0] if not keys.is_empty() else KEY_NONE) as Key
 
 
+## The long spelling, for the pause screen and the settings list. A verb that has both a
+## key and a mouse button says both: the keyboard was added without taking the mouse away,
+## and a player who has been clicking all along should not have to guess that it still works.
 static func spelling(settings: Settings, action: StringName) -> String:
 	var key := _key_of(settings, action)
+	var mouse: Array = DEFAULTS[action].get("mouse", [])
+	var click := ""
+	if not mouse.is_empty():
+		click = "left click" if int(mouse[0]) == MOUSE_BUTTON_LEFT else "right click"
 	if key == KEY_NONE:
-		var mouse: Array = DEFAULTS[action].get("mouse", [])
-		if not mouse.is_empty():
-			return "Left click" if int(mouse[0]) == MOUSE_BUTTON_LEFT else "Right click"
-		return "—"
-	return OS.get_keycode_string(key)
+		return click.capitalize() if click != "" else "—"
+	return "%s  or %s" % [OS.get_keycode_string(key), click] if click != "" else OS.get_keycode_string(key)
 
 
-## The short name of a verb's key for an on-screen prompt: "LMB", "Y", "SPACE".
+## The short name of a verb for an on-screen prompt: "LMB/F", "Y", "SPACE".
 static func short(settings: Settings, action: StringName) -> String:
 	var key := _key_of(settings, action)
+	var mouse: Array = DEFAULTS[action].get("mouse", [])
+	var click := ""
+	if not mouse.is_empty():
+		click = "LMB" if int(mouse[0]) == MOUSE_BUTTON_LEFT else "RMB"
 	if key == KEY_NONE:
-		var mouse: Array = DEFAULTS[action].get("mouse", [])
-		if not mouse.is_empty():
-			return "LMB" if int(mouse[0]) == MOUSE_BUTTON_LEFT else "RMB"
-		return "—"
-	return OS.get_keycode_string(key).to_upper()
+		return click if click != "" else "—"
+	var spelt := OS.get_keycode_string(key).to_upper()
+	return "%s/%s" % [click, spelt] if click != "" else spelt
 
 
 static func _fit(action: StringName, spec: Dictionary, instead := -1) -> void:

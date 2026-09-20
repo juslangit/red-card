@@ -14,6 +14,8 @@ var _camera: Camera3D
 var _t := 0.0
 var _quick := {"level": 1, "home": 0, "away": 1}
 var _rebinding: StringName = &""
+## Which page is showing, so Escape knows whether there is anywhere to go back to.
+var _page_name := "main"
 var _rebind_button: Button
 
 
@@ -72,10 +74,19 @@ func _ready() -> void:
 	row.add_child(side_column)
 	_side_plate = PanelContainer.new()
 	_side_plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.84))
+	_side_plate.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	side_column.add_child(_side_plate)
+	# It scrolls. The settings page lists every verb in the game down this column, and with
+	# the four for looking about added on 2026-09-20 the last of them fell off the bottom of
+	# the screen where nothing could reach them.
+	var side_scroll := ScrollContainer.new()
+	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_side_plate.add_child(side_scroll)
 	_side = VBoxContainer.new()
 	_side.add_theme_constant_override("separation", 12)
-	_side_plate.add_child(_side)
+	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side_scroll.add_child(_side)
 
 	var page: String = Game.pending.get("page", "")
 	match page:
@@ -127,6 +138,7 @@ func _logo() -> Control:
 
 
 func _main() -> void:
+	_page_name = "main"
 	_clear()
 	_page.add_child(_logo())
 	_page.add_child(_gap(30))
@@ -158,6 +170,7 @@ func _back() -> Button:
 # --- career -----------------------------------------------------------------------------
 
 func _career() -> void:
+	_page_name = "career"
 	_clear()
 	var career := Game.career
 	_page.add_child(Menus.title("CAREER"))
@@ -267,6 +280,7 @@ func _quick_match() -> void:
 # --- training and challenges ------------------------------------------------------------
 
 func _list(mode: String) -> void:
+	_page_name = mode
 	_clear()
 	_page.add_child(Menus.title("TRAINING GROUND" if mode == "training" else "CHALLENGES"))
 	_page.add_child(Menus.text("One signal at a time, with instructions." if mode == "training" else "One real refereeing problem each. No hints.", UiTheme.BODY))
@@ -293,6 +307,7 @@ func _describe(s: Dictionary) -> void:
 # --- settings ---------------------------------------------------------------------------
 
 func _settings() -> void:
+	_page_name = "settings"
 	_clear()
 	var s := Game.settings
 	_page.add_child(Menus.title("SETTINGS"))
@@ -340,6 +355,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_rebinding = &""
 		_settings()
 		get_viewport().set_input_as_handled()
+		return
+	# Escape goes back a page, the way it does everywhere else. Without it the only way off
+	# a page was to find the Back button with the mouse.
+	if event.is_action_pressed(&"ui_cancel") and _page_name != "main":
+		_main()
+		get_viewport().set_input_as_handled()
 
 
 func _slider(label: String, lo: float, hi: float, value: float, on_change: Callable) -> Control:
@@ -360,6 +381,7 @@ func _slider(label: String, lo: float, hi: float, value: float, on_change: Calla
 
 
 func _credits() -> void:
+	_page_name = "credits"
 	_clear()
 	_page.add_child(Menus.title("CREDITS"))
 	_page.add_child(Menus.text("Red Card — made by Luqman Hakeem with Claude.\nBuilt in Godot 4.7.", UiTheme.BODY, UiTheme.CHALK))

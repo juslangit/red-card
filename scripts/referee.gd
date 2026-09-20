@@ -249,7 +249,14 @@ func _physics_process(delta: float) -> void:
 	if _whistle_down >= 0.0:
 		_whistle_down += delta
 	_pad_look = Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
-	if _pad_look.length() > 0.15 and enabled and not scripted:
+	if _pad_look.length() < 0.15:
+		_pad_look = Vector2.ZERO
+	# The arrow keys turn your head, at the same rate as the stick. Pointing gives the
+	# restart you are looking at, so without this the game could not be played without a
+	# mouse at all.
+	if enabled and not scripted:
+		_pad_look += Input.get_vector(&"rc_look_left", &"rc_look_right", &"rc_look_up", &"rc_look_down")
+	if _pad_look.length() > 0.01 and enabled and not scripted:
 		yaw -= _pad_look.x * 2.6 * delta
 		pitch -= _pad_look.y * 2.0 * delta * (-1.0 if settings.invert_y else 1.0)
 		pitch = clampf(pitch, deg_to_rad(-82.0), deg_to_rad(70.0))

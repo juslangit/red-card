@@ -484,6 +484,11 @@ func _stop_play() -> void:
 ## The incident a whistle is answering: the most recent open offence still inside its
 ## window, preferring the most serious. Advantage that has not come back is included.
 func _incident_for_whistle() -> Incident:
+	# A flag that is up answers for itself, however long the referee took to see it: the
+	# assistant holds it until it is acknowledged, so the usual few-second window for
+	# noticing an offence does not apply.
+	if not flag.is_empty() and flag.get("incident") != null:
+		return flag.incident
 	var best: Incident = null
 	for i in range(laws.incidents.size() - 1, -1, -1):
 		var inc: Incident = laws.incidents[i]

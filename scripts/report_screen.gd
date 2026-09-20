@@ -70,6 +70,8 @@ func open(report: Dictionary, career_outcome: String) -> void:
 
 	if career_outcome != "":
 		_body.add_child(_career_banner(career_outcome))
+	if career_outcome == "champion":
+		_body.add_child(Menus.career_record(Game.career))
 
 	var stats := HBoxContainer.new()
 	stats.add_theme_constant_override("separation", 50)

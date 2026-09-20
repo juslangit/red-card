@@ -53,6 +53,9 @@ func _ready() -> void:
 	report_screen.play = self
 	add_child(report_screen)
 
+	# The cup final is the match a whole career has been climbing towards; it says so.
+	if config.get("mode") == "career" and config.get("level", "") == "final":
+		m.occasion = "CUP FINAL"
 	# A match begins with the toss; a drill or a challenge begins wherever it begins.
 	if not config.has("scenario"):
 		m.begin_coin_toss()
@@ -126,7 +129,7 @@ func _full_time() -> void:
 	var outcome := ""
 	if config.get("mode") == "career":
 		var score := "%d–%d" % [m.teams[0].goals, m.teams[1].goals]
-		outcome = Game.career.record(config, report.mark, score)
+		outcome = Game.career.record(config, report.mark, score, report)
 	report_screen.open(report, outcome)
 
 

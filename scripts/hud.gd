@@ -253,6 +253,8 @@ func _process(delta: float) -> void:
 	_score_home.text = str(m.teams[0].goals)
 	_score_away.text = str(m.teams[1].goals)
 	_half_label.text = "1ST HALF" if m.half == 1 else "2ND HALF"
+	if m.occasion != "":
+		_half_label.text = "%s · %s" % [m.occasion, _half_label.text]
 
 	# What pointing would give.
 	var meaning := ref.interpret_point()

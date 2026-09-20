@@ -202,6 +202,8 @@ func _career() -> void:
 	if career.finished:
 		_page.add_child(Menus.card_tag(UiTheme.GOOD, "CAREER COMPLETE"))
 		_page.add_child(Menus.text("You refereed the cup final. Start again from the village field any time.", UiTheme.BODY))
+		_page.add_child(_gap(6))
+		_page.add_child(Menus.career_record(career))
 	else:
 		var played := career.marks.size()
 		_page.add_child(Menus.text("Season: match %d of %d · average %s · %.1f to go up" % [played + 1, career.matches_this_season(),

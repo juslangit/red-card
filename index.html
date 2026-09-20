@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Red Card</title>
+<meta name="description" content="A first-person football refereeing game. You are on the pitch, on foot, for a full 11-a-side match the game simulates for real. The Laws of the Game are the rulebook, and an assessor marks you out of ten.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Red Card — you are the referee">
+<meta property="og:description" content="A first-person football refereeing game. Eleven a side, simulated for real. The Laws of the Game are the rulebook, and an assessor marks you out of ten.">
+<meta property="og:image" content="img/key-art.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --pitch:#08120D; --panel:#0F1D16; --panel-2:#16281F; --line:#273B31;
+  --white:#F1F6F2; --muted:#8CA396;
+  --red:#E63329; --red-ink:#FFF;
+  --flood:#D6E9FA; --grass:#3F9A61; --gold:#F5C544;
+  --display:"Oswald","Arial Narrow",Helvetica,Arial,sans-serif;
+  --body:"Inter","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+body{margin:0;background:var(--pitch);color:var(--white);font:400 17px/1.65 var(--body);-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--gold)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.wrap{width:100%;max-width:1180px;margin:0 auto;padding-inline:20px}
+section{padding-block:clamp(60px,8.5vw,108px)}
+
+/* recurring device: the match-official strip */
+.strip{display:inline-flex;align-items:stretch;background:#0b1712;border:1px solid var(--line);border-left:5px solid var(--red);font:600 12.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase}
+.strip span{padding:9px 13px;color:var(--muted)}
+.strip b{padding:9px 13px;background:var(--red);color:var(--red-ink);letter-spacing:.08em}
+
+h2{font:700 clamp(33px,5.2vw,58px)/.96 var(--display);text-transform:uppercase;letter-spacing:.005em;margin:16px 0 0;text-wrap:balance}
+h2+.lede{max-width:64ch;color:var(--muted);font-size:18.5px;margin:14px 0 0}
+.rule{width:110px;height:8px;background:var(--red);margin-top:18px;transform:skewX(-16deg)}
+
+/* header */
+header.top{position:sticky;top:0;z-index:60;background:rgba(8,18,13,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:18px;min-height:60px}
+.mark{display:flex;align-items:center;gap:10px;font:700 21px/1 var(--display);text-transform:uppercase;letter-spacing:.05em;text-decoration:none;color:var(--white);white-space:nowrap}
+.mark .chip{width:15px;height:21px;background:var(--red);border-radius:2px;transform:rotate(8deg)}
+header.top nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+header.top nav a{font:600 12.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);text-decoration:none;padding:9px 10px}
+header.top nav a:hover{color:var(--white)}
+header.top nav a.get{background:var(--red);color:#fff;padding:10px 16px;border-radius:2px}
+header.top nav a.get:hover{background:#ff453a;color:#fff}
+@media (max-width:720px){header.top nav a:not(.get){display:none}}
+
+/* hero */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%}
+.hero-veil{position:absolute;inset:0;background:linear-gradient(100deg,rgba(8,18,13,.95) 0%,rgba(8,18,13,.72) 44%,rgba(8,18,13,.22) 100%),linear-gradient(to top,var(--pitch) 2%,rgba(8,18,13,0) 52%)}
+.hero .wrap{position:relative;padding-block:clamp(56px,9.5vw,104px);min-height:min(78vh,640px);display:flex;flex-direction:column;justify-content:center;gap:20px}
+.hero h1{margin:0;font:700 clamp(58px,12vw,136px)/.84 var(--display);text-transform:uppercase;letter-spacing:-.005em}
+.hero h1 em{font-style:normal;color:var(--red)}
+.tag{margin:0;font:600 clamp(19px,2.5vw,27px)/1.25 var(--display);text-transform:uppercase;letter-spacing:.03em;color:var(--white)}
+.tag i{font-style:normal;color:var(--gold)}
+.sub{margin:0;max-width:60ch;color:#C6D4CC;font-size:18px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.btn{display:inline-flex;align-items:center;gap:9px;background:var(--red);color:#fff;text-decoration:none;font:600 14px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;padding:16px 26px;border-radius:2px;border:1px solid transparent}
+.btn:hover{background:#ff453a;color:#fff}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--white)}
+.btn.ghost:hover{border-color:var(--white);background:rgba(255,255,255,.05)}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pills span{font:600 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:8px 11px;border-radius:2px;background:rgba(8,18,13,.5)}
+
+/* thesis */
+.thesis{display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center;margin-top:30px}
+@media (max-width:900px){.thesis{grid-template-columns:1fr;gap:30px}}
+blockquote{margin:0 0 20px;font:600 clamp(25px,3.6vw,40px)/1.16 var(--display);text-transform:uppercase;letter-spacing:.005em;text-wrap:balance}
+blockquote em{font-style:normal;color:var(--red)}
+.thesis p{color:var(--muted)}
+.thesis figure{margin:0}
+.thesis figure img{border:1px solid var(--line)}
+figcaption{margin-top:10px;color:var(--muted);font-size:14px;line-height:1.5}
+
+/* decisions grid */
+.decs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}
+@media (max-width:900px){.decs{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.decs{grid-template-columns:1fr}}
+.dec{background:var(--panel);border:1px solid var(--line);padding:20px 20px 22px;border-top:3px solid var(--red)}
+.dec h3{margin:0 0 4px;font:600 19px/1.2 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.dec .key{font:600 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:10px}
+.dec p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.55}
+
+/* career ladder */
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:34px}
+@media (max-width:860px){.ladder{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:480px){.ladder{grid-template-columns:1fr}}
+.rung{background:var(--panel);border:1px solid var(--line);padding:22px 18px;position:relative}
+.rung .n{font:600 11px/1 var(--mono);letter-spacing:.12em;color:var(--muted)}
+.rung h3{margin:9px 0 6px;font:600 21px/1.15 var(--display);text-transform:uppercase}
+.rung p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.5}
+.rung:last-child{border-color:var(--red)}
+.rung:last-child h3{color:var(--red)}
+
+/* two-column feature */
+.twin{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
+@media (max-width:800px){.twin{grid-template-columns:1fr}}
+.tile{background:var(--panel);border:1px solid var(--line);padding:26px}
+.tile h3{margin:0 0 6px;font:600 25px/1.1 var(--display);text-transform:uppercase}
+.tile .count{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.tile ul{margin:14px 0 0;padding-left:18px;color:var(--muted);font-size:15.5px;line-height:1.7}
+
+/* gallery */
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:34px}
+@media (max-width:860px){.gal{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.gal{grid-template-columns:1fr}}
+.gal figure{margin:0}
+.gal img{border:1px solid var(--line);aspect-ratio:16/9;object-fit:cover}
+
+/* ---- DOWNLOAD ---- */
+#get{background:var(--panel);border-block:1px solid var(--line)}
+.plats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
+@media (max-width:800px){.plats{grid-template-columns:1fr}}
+.plat{background:var(--pitch);border:1px solid var(--line);padding:28px;display:flex;flex-direction:column;gap:6px;position:relative}
+.plat.you{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset}
+.plat .yours{position:absolute;top:-1px;right:-1px;background:var(--red);color:#fff;font:600 10.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;padding:7px 11px}
+.plat .os{display:flex;align-items:center;gap:11px}
+.plat .os svg{width:26px;height:26px;fill:var(--white);flex:none}
+.plat h3{margin:0;font:600 26px/1 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.plat .file{font:500 12.5px/1.5 var(--mono);color:var(--muted);margin:10px 0 0;word-break:break-all}
+.plat .note{margin:10px 0 0;color:var(--muted);font-size:14.5px;line-height:1.55}
+.plat .dl{margin-top:18px}
+.plat .btn{width:100%;justify-content:center}
+.plat.soon{opacity:.62}
+.plat.soon .btn{background:transparent;border-color:var(--line);color:var(--muted);pointer-events:none}
+.reqs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media (max-width:800px){.reqs{grid-template-columns:1fr}}
+.req{background:var(--pitch);border:1px solid var(--line);padding:22px}
+.req h4{margin:0 0 12px;font:600 12px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--gold)}
+.req dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:14.5px}
+.req dt{color:var(--muted);font:500 12.5px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.req dd{margin:0}
+.warn{margin-top:14px;background:rgba(230,51,41,.08);border:1px solid rgba(230,51,41,.35);border-left:4px solid var(--red);padding:18px 20px}
+.warn p{margin:0;font-size:15px;color:#D9E4DD;line-height:1.6}
+.warn b{color:var(--white)}
+
+/* sheet */
+.sheet{margin:30px 0 0;border-top:1px solid var(--line)}
+.sheet .r{display:grid;grid-template-columns:200px 1fr;gap:20px;padding:17px 0;border-bottom:1px solid var(--line)}
+@media (max-width:640px){.sheet .r{grid-template-columns:1fr;gap:5px}}
+.sheet dt{font:500 12px/1.5 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sheet dd{margin:0;font-size:16.5px}
+.sheet dd .mono{font-family:var(--mono);font-size:14.5px}
+
+footer{border-top:1px solid var(--line);background:#050c08;padding-block:44px 54px}
+footer .cols{display:flex;gap:30px;flex-wrap:wrap;justify-content:space-between;align-items:flex-start}
+footer p{margin:0;color:var(--muted);font-size:14.5px;max-width:54ch}
+footer .links{display:flex;gap:18px;flex-wrap:wrap;font:600 12px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase}
+footer .links a{text-decoration:none;color:var(--muted)}
+footer .links a:hover{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="#top"><span class="chip"></span>Red Card</a>
+    <nav>
+      <a href="#truth">The truth</a>
+      <a href="#job">The job</a>
+      <a href="#career">Career</a>
+      <a href="#media">Media</a>
+      <a class="get" href="#get">Download</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero" id="top">
+  <img class="hero-img" src="img/key-art.jpg" alt="A referee holds a red card above his head under stadium floodlights in the rain">
+  <div class="hero-veil"></div>
+  <div class="wrap">
+    <h1>Red <em>Card</em></h1>
+    <p class="tag">You are the referee. <i>Not the footballer.</i></p>
+    <p class="sub">Eleven a side, on foot, for the full ninety. The match is simulated for real, so the truth of every tackle, every offside and every ball over the line already exists. Your job is to be in the right place to see it — and to get it right in front of thirty thousand people who are certain you did not.</p>
+    <div class="cta">
+      <a class="btn" href="#get">Download free</a>
+      <a class="btn ghost" href="#job">What you decide</a>
+    </div>
+    <div class="pills">
+      <span>In testing</span><span>macOS &amp; Windows</span><span>Godot 4.7.2</span><span>Keyboard, mouse &amp; gamepad</span><span>Single player</span><span>Free</span>
+    </div>
+  </div>
+</div>
+
+<section id="truth">
+  <div class="wrap">
+    <p class="strip"><b>The premise</b><span>One person decides what happened</span></p>
+    <h2>The game already knows. It is waiting to see if you do.</h2>
+    <div class="rule"></div>
+
+    <div class="thesis">
+      <div>
+        <blockquote>Positioning is <em>half the job</em>.</blockquote>
+        <p>Every other football game puts you in the boots of someone who can run faster than you. This one puts you twenty metres behind play with a bad angle, and the contact happens anyway.</p>
+        <p>Every tackle's outcome, every offside position and every ball over the line is recorded as it happens and judged against the IFAB Laws of the Game. The game never shows you the answer in the moment. It only asks what you saw — and whether you were close enough to see it.</p>
+        <p>Afterwards, an assessor replays your big decisions from your own eyes and marks you out of ten. That is the loop: run, look, decide, and find out.</p>
+      </div>
+      <figure>
+        <img src="img/shot-card.jpg" alt="First-person view of the referee's own arm holding a card, with the pitch beyond">
+        <figcaption>You look down and your own body is there. The card goes to the player you are looking at, which is exactly as easy as it sounds until twenty-two people are moving.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="job" style="background:var(--panel);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <p class="strip"><b>The job</b><span>Every decision, on one whistle</span></p>
+    <h2>Everything a referee actually does</h2>
+    <div class="rule"></div>
+    <p class="lede">Not a menu of three options at a cutscene. The full set, available at any moment of the match, on the keys under your fingers — and every one of them can be the wrong call.</p>
+
+    <div class="decs">
+      <div class="dec"><span class="key">Left click</span><h3>The whistle</h3><p>Short for a foul, held long for the ones that need to carry. The match stops when you say it stops, and not before.</p></div>
+      <div class="dec"><span class="key">Right click</span><h3>The restart</h3><p>Point and give it: direct or indirect free kick, throw-in, corner, goal kick, dropped ball. Pointing the wrong way is a decision too.</p></div>
+      <div class="dec"><span class="key">Space</span><h3>Advantage</h3><p>Wave it on and let the attack run. If it breaks down two seconds later, everyone in the ground remembers that you had the whistle in your mouth.</p></div>
+      <div class="dec"><span class="key">Y / R</span><h3>Cards</h3><p>Yellow and red, shown to whichever player you are looking at. The last man, the second yellow, the dive — the Laws say which, and so does the assessor.</p></div>
+      <div class="dec"><span class="key">X</span><h3>The assistants</h3><p>They raise the flag for offside and they are sometimes wrong. Wave it down and the decision — and the blame — is yours alone.</p></div>
+      <div class="dec"><span class="key">Q</span><h3>Indirect</h3><p>Arm straight up and held there until the ball is touched by a second player. Forget to raise it and the goal should not have stood.</p></div>
+      <div class="dec"><span class="key">Tab</span><h3>The watch</h3><p>Ninety minutes plus whatever you add. Added time is your number, and the away side will have an opinion about it.</p></div>
+      <div class="dec"><span class="key">N</span><h3>The notebook</h3><p>Who you booked and what for, carried through the match, because at the eighty-eighth minute you will need to know.</p></div>
+      <div class="dec"><span class="key">Top flight</span><h3>VAR</h3><p>At the top of the career a voice in your ear tells you to take another look. Going to the monitor is still your call, and so is overruling yourself.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="career">
+  <div class="wrap">
+    <p class="strip"><b>Career</b><span>Village field to cup final</span></p>
+    <h2>Four grounds. The same Laws. A very different noise.</h2>
+    <div class="rule"></div>
+    <p class="lede">You start on a recreation ground where the ball goes in a hedge and the only people watching are substitutes and a dog. You finish under floodlights with VAR in your ear. Nothing about the Laws changes. Everything about the consequences does.</p>
+
+    <div class="ladder">
+      <div class="rung"><span class="n">01</span><h3>Sunday league</h3><p>A village recreation ground. Everybody starts here. Club linesmen who only fly the flag one way, and not always fairly.</p></div>
+      <div class="rung"><span class="n">02</span><h3>Town league</h3><p>A real stand, a real crowd, and assistants who are neutral but still human.</p></div>
+      <div class="rung"><span class="n">03</span><h3>League ground</h3><p>Ten thousand people who came to watch football and will happily watch you instead.</p></div>
+      <div class="rung"><span class="n">04</span><h3>The cup final</h3><p>Floodlights, a full stadium and VAR. Every decision is looked at twice — once by you, once by everybody.</p></div>
+    </div>
+
+    <div class="twin">
+      <div class="tile">
+        <span class="count">Nine drills</span>
+        <h3>Training ground</h3>
+        <p style="color:var(--muted);margin:8px 0 0;font-size:15.5px">Learn the job without a scoreline attached. Signals, positioning, keeping up with play, reading the offside line, and the mechanics of every restart, one at a time.</p>
+      </div>
+      <div class="tile">
+        <span class="count">Eight challenges</span>
+        <h3>The hard Laws</h3>
+        <ul>
+          <li>The last man — foul, or a goalscoring opportunity denied?</li>
+          <li>The dive, and the booking that follows it</li>
+          <li>Handball on the line</li>
+          <li>The wrong flag, raised by your own assistant</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="media" style="background:var(--panel);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <p class="strip"><b>Media</b><span>From the build, not a render</span></p>
+    <h2>The build as it stands</h2>
+    <div class="rule"></div>
+    <p class="lede">These are screenshots of the actual first playable build, taken from the game and not touched up. The art is plain on purpose while the refereeing is being proved out — what is being tested here is whether the job is interesting, not whether the grass looks expensive.</p>
+
+    <div class="gal">
+      <figure><img src="img/shot-point.jpg" alt="Pointing to give a free kick, with the decision prompt on screen"><figcaption>Point, and the restart the prompt names is the one you have given.</figcaption></figure>
+      <figure><img src="img/shot-watch.jpg" alt="Holding up the referee's watch mid-match"><figcaption>Hold Tab for the watch. Added time is a number you choose.</figcaption></figure>
+      <figure><img src="img/shot-flag.jpg" alt="A challenge explaining an assistant flagging behind your back"><figcaption>A challenge: your assistant has flagged behind your back.</figcaption></figure>
+      <figure><img src="img/shot-final.jpg" alt="Kick-off at the floodlit cup final ground at night"><figcaption>The cup final ground, under lights.</figcaption></figure>
+      <figure><img src="img/shot-career.jpg" alt="The career screen showing the Sunday League fixture"><figcaption>The career screen. Everybody starts on a Sunday.</figcaption></figure>
+      <figure><img src="img/shot-menu.jpg" alt="The Red Card main menu"><figcaption>Career, quick match, training ground, challenges.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD ============ -->
+<section id="get">
+  <div class="wrap">
+    <p class="strip"><b>Download</b><span>Free · no account · no installer</span></p>
+    <h2>Pick your platform</h2>
+    <div class="rule"></div>
+    <p class="lede">Red Card is free. There is no launcher, no account and no telemetry — you download one file and run it. Both builds come straight from the project's GitHub releases.</p>
+
+    <div class="plats" id="plats">
+      <div class="plat" id="plat-mac">
+        <span class="yours" hidden>Your system</span>
+        <div class="os">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.47 2.22-1.23 3.01-.82.85-2.16 1.5-3.28 1.41-.13-1.1.44-2.25 1.18-3.02.83-.86 2.27-1.48 3.33-1.4zM20.9 17.13c-.55 1.27-.81 1.83-1.52 2.95-.99 1.56-2.38 3.5-4.11 3.51-1.53.02-1.93-1-4.01-.99-2.08.01-2.51 1.01-4.05.99-1.72-.02-3.04-1.77-4.03-3.32C.41 15.92-.1 10.83 1.83 8.06c1.09-1.58 2.81-2.5 4.43-2.5 1.65 0 2.68.91 4.05.91 1.32 0 2.13-.91 4.03-.91 1.44 0 2.96.78 4.05 2.14-3.56 1.95-2.98 7.03.51 8.43z"/></svg>
+          <h3>macOS</h3>
+        </div>
+        <p class="file">Red.Card.zip · 93 MB · universal</p>
+        <p class="note">Unzip and drag <b>Red Card.app</b> wherever you like. The build is unsigned, so the first time you open it, <b>right-click the app and choose Open</b>, then confirm — a normal double-click will be blocked by Gatekeeper.</p>
+        <div class="dl"><a class="btn" href="https://github.com/juslangit/red-card/releases/latest/download/Red.Card.zip">Download for macOS</a></div>
+      </div>
+
+      <div class="plat" id="plat-win">
+        <span class="yours" hidden>Your system</span>
+        <div class="os">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+          <h3>Windows</h3>
+        </div>
+        <p class="file">Red.Card.exe · 156 MB · 64-bit</p>
+        <p class="note">One file, no installer — put it in a folder and run it. SmartScreen will warn you because the build is unsigned: choose <b>More info</b>, then <b>Run anyway</b>.</p>
+        <div class="dl"><a class="btn" href="https://github.com/juslangit/red-card/releases/latest/download/Red.Card.exe">Download for Windows</a></div>
+      </div>
+    </div>
+
+    <div class="reqs">
+      <div class="req">
+        <h4>What you need</h4>
+        <dl>
+          <dt>macOS</dt><dd>11 Big Sur or later. Apple Silicon or Intel.</dd>
+          <dt>Windows</dt><dd>10 or 11, 64-bit.</dd>
+          <dt>Graphics</dt><dd>Anything with Vulkan or Metal from the last decade.</dd>
+          <dt>Disk</dt><dd>About 400 MB once unpacked.</dd>
+          <dt>Input</dt><dd>Keyboard and mouse, or any gamepad. Every key rebindable.</dd>
+        </dl>
+      </div>
+      <div class="req">
+        <h4>Honestly, before you download</h4>
+        <dl>
+          <dt>Version</dt><dd>v0.1.0 — the first playable build.</dd>
+          <dt>State</dt><dd>Everything listed on this page is in it and works.</dd>
+          <dt>Caveat</dt><dd>It has not yet been played end to end by a human being. You may well be the first.</dd>
+          <dt>Art</dt><dd>Deliberately plain. The refereeing is the part being proved.</dd>
+          <dt>Cost</dt><dd>Free, and there is nothing to buy.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="warn">
+      <p><b>Both builds are unsigned.</b> Luqman is one person making games, not a company with an Apple Developer certificate and a Microsoft code-signing key, so macOS and Windows will both tell you they cannot verify the publisher. The steps above get past it. The source is on <a href="https://github.com/juslangit/red-card">GitHub</a> if you would rather read it and build it yourself.</p>
+    </div>
+  </div>
+</section>
+
+<section id="details">
+  <div class="wrap">
+    <p class="strip"><b>Details</b><span>What it is, honestly</span></p>
+    <h2>The team sheet</h2>
+    <div class="rule"></div>
+
+    <dl class="sheet">
+      <div class="r"><dt>Status</dt><dd>In testing. First playable build, 2026-09-18. Waiting on its first full human playthrough.</dd></div>
+      <div class="r"><dt>Engine</dt><dd>Godot 4.7.2, GDScript. The same spine as <a href="https://juslangit.github.io/referee-for-fun/">Referee For Fun</a>, rebuilt for a sport where the official has to run.</dd></div>
+      <div class="r"><dt>The rulebook</dt><dd>The IFAB Laws of the Game, implemented as the game's model of truth rather than as a list of tips.</dd></div>
+      <div class="r"><dt>The match</dt><dd>Eleven a side, simulated — not scripted set pieces. Assistants have positions, sightlines and the capacity to be wrong.</dd></div>
+      <div class="r"><dt>Modes</dt><dd>Career (four grounds) · quick match · training ground (9 drills) · challenges (8 hard Laws)</dd></div>
+      <div class="r"><dt>How it is checked</dt><dd><span class="mono">tools/check_scripts.sh</span> parses every script; the checks and camera runs under <span class="mono">dev/</span> drive the game headless and print numbers. A game about split-second judgement cannot be verified by eye.</dd></div>
+      <div class="r"><dt>Licensing</dt><dd>Every club, player and competition is fictional. No real badges, no licensed branding. Credits in <span class="mono">CREDITS.md</span>.</dd></div>
+      <div class="r"><dt>Not in it</dt><dd>You never kick the ball. No multiplayer, no mobile, no other sport, and no way to referee dishonestly — that is the other game.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap cols">
+    <p>Red Card is a single-player game made in Godot by Luqman Hakeem. It is free, unfinished and honest about both. The key art above is an illustration; the screenshots are the build.</p>
+    <div class="links">
+      <a href="https://github.com/juslangit/red-card">Source on GitHub</a>
+      <a href="https://github.com/juslangit/red-card/releases">All releases</a>
+      <a href="https://juslangit.github.io/referee-for-fun/">Referee For Fun</a>
+      <a href="#top">Back to the top</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Highlight the platform the visitor is actually on, and put it first. */
+(function(){
+  var p = navigator.platform || '';
+  var ua = navigator.userAgent || '';
+  var isMac = /Mac/i.test(p) || (/Mac/i.test(ua) && !/iPhone|iPad/i.test(ua));
+  var isWin = /Win/i.test(p) || /Windows/i.test(ua);
+  if (!isMac && !isWin) return;                 // Linux, mobile, unknown: leave it alone
+  var id = isMac ? 'plat-mac' : 'plat-win';
+  var card = document.getElementById(id);
+  if (!card) return;
+  card.classList.add('you');
+  var badge = card.querySelector('.yours');
+  if (badge) badge.hidden = false;
+  document.getElementById('plats').prepend(card);
+})();
+</script>
+</body>
+</html>

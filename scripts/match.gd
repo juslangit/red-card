@@ -38,6 +38,9 @@ var recorder: Recorder
 var var_system = null
 
 var phase := Phase.PRE_MATCH
+## What this match is, when it is more than a match: "CUP FINAL". Shown beside the half on
+## the score bug, so the one you have climbed four levels for does not look like a Tuesday.
+var occasion := ""
 var half := 1
 ## Seconds since the match began, running through stoppages the way a football clock does.
 var clock := 0.0

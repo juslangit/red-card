@@ -91,6 +91,29 @@ func _process(delta: float) -> void:
 				bad += 1
 			else:
 				print("     left:  %s → %s" % [_before.strip_edges(), halves.text.strip_edges()])
+			# Wiping a career takes two presses. It used to take one, from a button sitting
+			# directly under "Referee this match" and looking exactly like it.
+			menu._career()
+			step = 40
+			return
+		40:
+			var reset := _chooser("Start a new career")
+			if reset == null:
+				print("BAD  no reset button on the career page")
+				bad += 1
+			else:
+				reset.emit_signal("pressed")
+			step = 41
+			return
+		41:
+			if _chooser("Start a new career") != null:
+				print("BAD  one press of the reset button did not ask for a second")
+				bad += 1
+			elif _chooser("Yes — wipe it") == null:
+				print("BAD  the reset button did not turn into a confirmation")
+				bad += 1
+			else:
+				print("     wiping a career asks first")
 			step = 89
 		_:
 			print("%d menu key problem(s)" % bad)

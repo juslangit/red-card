@@ -238,6 +238,7 @@ func finish() -> void:
 		"trail": trail,
 		"distance_km": _distance_run / 1000.0 * m.clock_scale(),
 		"cards": cards.size(),
+		"card_list": cards.map(func(c): return String(c.colour)),
 		"protests": protests,
 		"protests_managed": protests_managed,
 	}

@@ -82,6 +82,51 @@ static func paint_live(b: Button, plate: StyleBoxFlat, lit: bool) -> void:
 	b.add_theme_color_override("font_hover_color", UiTheme.INK if lit else UiTheme.CHALK)
 
 
+## What a whole career came to: the climb, the numbers, and a last word. Shown on the
+## report the moment the cup final ends, and on the career page any time afterwards —
+## finishing used to be two sentences of congratulation with everything you had done on
+## the way thrown away.
+static func career_record(career) -> Control:
+	var r: Dictionary = career.record_so_far()
+	# On a plate: loose text over a floodlit pitch is not readable, which is the whole
+	# reason the right-hand column has had one since the menus were built.
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.GOOD, 0.86))
+	var box := VBoxContainer.new()
+	plate.add_child(box)
+	box.add_theme_constant_override("separation", 6)
+	box.add_child(UiTheme.label("YOUR CAREER", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
+	box.add_child(text("You refereed the cup final. Start again from the village field any time.",
+		UiTheme.SMALL, UiTheme.MUTED))
+	var numbers := HBoxContainer.new()
+	numbers.add_theme_constant_override("separation", 34)
+	for pair in [["MATCHES", "%d" % r.matches], ["AVERAGE", "%.2f" % r.average],
+			["BEST", "%.1f" % r.best], ["CARDS", "%d Y · %d R" % [r.yellows, r.reds]],
+			["RUN", "%.0f km" % r.kilometres]]:
+		var one := VBoxContainer.new()
+		one.add_child(UiTheme.label(pair[0], UiTheme.SMALL, UiTheme.MUTED, UiTheme.heavy()))
+		one.add_child(UiTheme.label(pair[1], UiTheme.HEADING, UiTheme.CHALK, UiTheme.display()))
+		numbers.add_child(one)
+	box.add_child(numbers)
+	for entry in r.levels:
+		box.add_child(text("%s — average %.2f" % [Career.LEVEL_TITLES[int(entry.level)], float(entry.average)],
+			UiTheme.BODY, UiTheme.CHALK))
+	box.add_child(text(career_verdict(r), UiTheme.BODY, UiTheme.ACCENT))
+	return plate
+
+
+## An assessor's last word on the whole thing, in the language of the marks.
+static func career_verdict(r: Dictionary) -> String:
+	var average: float = r.average
+	if average >= 9.0:
+		return "A referee nobody talked about afterwards, which is the whole job."
+	if average >= 8.5:
+		return "Four grounds, and the game was better refereed at each of them."
+	if average >= 8.0:
+		return "You were never the story. That is the compliment."
+	return "You got there. Some of them were hard watching, but you got there."
+
+
 static func title(text: String, size := UiTheme.HUGE, colour := UiTheme.CHALK) -> Label:
 	var l := UiTheme.label(text, size, colour, UiTheme.display())
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT

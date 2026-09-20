@@ -21,6 +21,8 @@ var _page_name := "main"
 ## that grabs focus for its own first button would otherwise take it straight back.
 var _focus_wanted := ""
 var _focus_taken := false
+## Whether "start a new career" is waiting for a second press.
+var _confirm_reset := false
 var _rebind_button: Button
 
 
@@ -145,6 +147,7 @@ func _logo() -> Control:
 
 func _main() -> void:
 	_page_name = "main"
+	_confirm_reset = false
 	_clear()
 	_page.add_child(_logo())
 	_page.add_child(_gap(30))
@@ -189,28 +192,30 @@ func _back() -> Button:
 
 # --- career -----------------------------------------------------------------------------
 
+## The career page. Three questions, in the order a referee asks them: where am I in all
+## this, am I doing well enough to go up, and who have I got next?
+##
+## It used to answer the first not at all — you had to know that the County League was the
+## second of four — and the second in a grey sentence, which is the least readable thing on
+## a page and the most important thing on it. Worse, "Start a new career", which wipes
+## everything, sat directly under "Referee this match" looking exactly the same as it.
 func _career() -> void:
 	_page_name = "career"
 	_clear()
 	var career := Game.career
 	_page.add_child(Menus.title("CAREER"))
-	var level_title := UiTheme.label(career.title().to_upper(), UiTheme.TITLE, UiTheme.ACCENT, UiTheme.display())
-	level_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_page.add_child(level_title)
-	var level: Dictionary = Venue.level_by_id(career.level_id())
-	_page.add_child(Menus.text("Matches at %s. %s" % [level.name, _officials_words(level)], UiTheme.BODY, UiTheme.CHALK))
+	_page.add_child(_ladder(career))
+	_page.add_child(_gap(6))
 	if career.finished:
 		_page.add_child(Menus.card_tag(UiTheme.GOOD, "CAREER COMPLETE"))
-		_page.add_child(Menus.text("You refereed the cup final. Start again from the village field any time.", UiTheme.BODY))
+		_page.add_child(Menus.career_record(career))
 	else:
-		var played := career.marks.size()
-		_page.add_child(Menus.text("Season: match %d of %d · average %s · %.1f to go up" % [played + 1, career.matches_this_season(),
-			("%.2f" % career.average()) if played > 0 else "—", Career.PROMOTION_MARK], UiTheme.BODY))
+		_page.add_child(_season_so_far(career))
+		_page.add_child(_gap(8))
 		var fixture := career.next_fixture()
-		var home := Names.club(fixture.home)
-		var away := Names.club(fixture.away)
-		_page.add_child(_gap(10))
-		_page.add_child(_fixture_card(home, away))
+		_page.add_child(_fixture_card(Names.club(fixture.home), Names.club(fixture.away)))
+		_page.add_child(_ground_line(Venue.level_by_id(career.level_id())))
+		_page.add_child(_gap(6))
 		var go := Menus.button("Referee this match", func():
 			var cfg := fixture.duplicate()
 			cfg["half"] = Game.half_seconds()
@@ -218,17 +223,148 @@ func _career() -> void:
 		_page.add_child(go)
 		if not _focus_taken:
 			go.grab_focus.call_deferred()
-	_page.add_child(Menus.button("Start a new career", func():
-		Game.career.reset()
-		_career(), UiTheme.BUTTON_WIDTH))
+	_page.add_child(_gap(10))
+	_page.add_child(_reset_button())
 	_page.add_child(_back())
-	# The history on the right.
+	_career_history(career)
+
+
+## Where you are in the whole thing: four rungs, the ones behind you ticked with the
+## average that got you off them, the one you are on lit, the rest to come.
+func _ladder(career: Career) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var done := {}
+	for entry in career.level_averages:
+		done[int(entry.level)] = float(entry.average)
+	for i in Career.LEVELS.size():
+		var here: bool = i == career.level and not career.finished
+		var passed: bool = done.has(i)
+		var plate := PanelContainer.new()
+		plate.add_theme_stylebox_override("panel", UiTheme.plate(
+			UiTheme.ACCENT if here else (UiTheme.GOOD if passed else UiTheme.EDGE),
+			0.9 if here else 0.55))
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 0)
+		plate.add_child(box)
+		var name: String = Career.LEVEL_TITLES[i]
+		var ink: Color = UiTheme.ACCENT if here else UiTheme.CHALK
+		box.add_child(UiTheme.label(name.to_upper(), UiTheme.SMALL, ink, UiTheme.heavy()))
+		var under: String = ("✓ %.2f" % float(done[i])) if passed else ("YOU ARE HERE" if here else "—")
+		box.add_child(UiTheme.label(under, UiTheme.SMALL,
+			UiTheme.GOOD if passed else (UiTheme.CHALK if here else UiTheme.MUTED), UiTheme.body()))
+		plate.custom_minimum_size = Vector2(200, 0)
+		row.add_child(plate)
+	return row
+
+
+## This season: a mark for each match played, and how far the average is from the bar.
+func _season_so_far(career: Career) -> Control:
+	var plate := PanelContainer.new()
+	plate.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.84))
+	var box := VBoxContainer.new()
+	plate.add_child(box)
+	box.add_theme_constant_override("separation", 4)
+	var played: int = career.marks.size()
+	var total: int = career.matches_this_season()
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	head.add_child(UiTheme.label("MATCH %d OF %d" % [mini(played + 1, total), total],
+		UiTheme.BODY, UiTheme.CHALK, UiTheme.heavy()))
+	for i in total:
+		var pip := UiTheme.label(("%.1f" % float(career.marks[i])) if i < played else "·",
+			UiTheme.SMALL, UiTheme.GOOD if i < played else UiTheme.MUTED, UiTheme.heavy())
+		pip.custom_minimum_size = Vector2(46, 0)
+		head.add_child(pip)
+	box.add_child(head)
+	if played > 0:
+		var average := career.average()
+		var short := Career.PROMOTION_MARK - average
+		var words := "Average %.2f — %.2f short of the %.1f you need" % [average, short, Career.PROMOTION_MARK]
+		if short <= 0.0:
+			words = "Average %.2f — that is promotion form" % average
+		box.add_child(Menus.text(words, UiTheme.BODY, UiTheme.GOOD if short <= 0.0 else UiTheme.YELLOW))
+		box.add_child(_gauge(average))
+	else:
+		box.add_child(Menus.text("%.1f on average over the season takes you up." % Career.PROMOTION_MARK,
+			UiTheme.BODY, UiTheme.MUTED))
+	return plate
+
+
+## The bar: 5 to 10, your average filled in, and a mark at the promotion line.
+func _gauge(average: float) -> Control:
+	var bar := ColorRect.new()
+	bar.color = UiTheme.RAISED
+	bar.custom_minimum_size = Vector2(UiTheme.BUTTON_WIDTH, 16)
+	var fill := ColorRect.new()
+	fill.color = UiTheme.GOOD if average >= Career.PROMOTION_MARK else UiTheme.YELLOW
+	fill.anchor_bottom = 1.0
+	fill.anchor_right = clampf((average - 5.0) / 5.0, 0.0, 1.0)
+	bar.add_child(fill)
+	var line := ColorRect.new()
+	line.color = UiTheme.CHALK
+	line.anchor_bottom = 1.0
+	line.anchor_left = (Career.PROMOTION_MARK - 5.0) / 5.0
+	line.anchor_right = line.anchor_left
+	line.offset_right = 3.0
+	bar.add_child(line)
+	return bar
+
+
+## The ground and who else is on it, as chips rather than a paragraph.
+func _ground_line(level: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(Menus.card_tag(UiTheme.EDGE, level.name.to_upper()))
+	row.add_child(Menus.card_tag(UiTheme.EDGE,
+		"CLUB LINESMEN" if level.assistants == "club" else "NEUTRAL ASSISTANTS"))
+	if level.fourth_official:
+		row.add_child(Menus.card_tag(UiTheme.EDGE, "FOURTH OFFICIAL"))
+	if level.var:
+		row.add_child(Menus.card_tag(UiTheme.YELLOW, "VAR"))
+	return row
+
+
+## Wiping a career takes two presses now. It sat under "Referee this match" looking exactly
+## like it, and one stray click threw away a season.
+func _reset_button() -> Button:
+	if not _confirm_reset:
+		var b := Menus.button("Start a new career", func():
+			_confirm_reset = true
+			_career(), 420)
+		b.add_theme_color_override("font_color", UiTheme.MUTED)
+		return b
+	var confirm := Menus.button("Yes — wipe it and start again", func():
+		Game.career.reset()
+		_confirm_reset = false
+		_career(), 420)
+	confirm.add_theme_color_override("font_color", UiTheme.RED)
+	return confirm
+
+
+## Every match refereed, newest first, under the level it was played at.
+func _career_history(career: Career) -> void:
 	_side.add_child(UiTheme.label("MATCHES REFEREED", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	if career.history.is_empty():
 		_side.add_child(Menus.text("None yet. Everybody starts on a Sunday morning at the rec.", UiTheme.BODY))
-	for h in career.history.slice(maxi(0, career.history.size() - 12)):
-		var line := "%s   %s %s %s   ·   %.1f" % [Career.LEVEL_TITLES[h.level], Names.club(h.home).short, h.score, Names.club(h.away).short, h.mark]
-		_side.add_child(Menus.text(line, UiTheme.BODY, UiTheme.CHALK))
+		return
+	var last_level := -1
+	for h in career.history.slice(maxi(0, career.history.size() - 14)):
+		if int(h.level) != last_level:
+			last_level = int(h.level)
+			_side.add_child(_gap(4))
+			_side.add_child(UiTheme.label(Career.LEVEL_TITLES[last_level].to_upper(),
+				UiTheme.SMALL, UiTheme.MUTED, UiTheme.heavy()))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		var fixture := UiTheme.label("%s %s %s" % [Names.club(h.home).short, h.score, Names.club(h.away).short],
+			UiTheme.BODY, UiTheme.CHALK, UiTheme.body())
+		fixture.custom_minimum_size = Vector2(240, 0)
+		row.add_child(fixture)
+		var mark := float(h.mark)
+		row.add_child(UiTheme.label("%.1f" % mark, UiTheme.BODY,
+			UiTheme.GOOD if mark >= Career.PROMOTION_MARK else UiTheme.YELLOW, UiTheme.heavy()))
+		_side.add_child(row)
 
 
 func _officials_words(level: Dictionary) -> String:

@@ -64,6 +64,7 @@ func _next() -> void:
 		m.ball.hit_referee.connect(func(sp): print("   %.2f HIT REF %.1f" % [m.clock, sp]))
 	var bot := BotReferee.new()
 	bot.setup(m, ref)
+	_bot = bot
 	bot.idle = current.idle
 	bot.stay = def.get("ref_still", false)
 	bot.trace = not OS.get_cmdline_user_args().is_empty()
@@ -74,11 +75,15 @@ func _next() -> void:
 
 
 var _tick := 0.0
+var _bot: BotReferee
 
 
 func _process(_d: float) -> void:
 	if holder == null:
 		return
+	# Tell the bot which incident this drill is about, so it deals with that one first.
+	if _bot != null and run != null:
+		_bot.focus = run._scripted
 	if OS.get_cmdline_user_args().has("positions") and run != null and run.m != null:
 		_tick += _d
 		if _tick > 0.25:
@@ -103,4 +108,21 @@ func _process(_d: float) -> void:
 
 func _done(result: Dictionary) -> void:
 	results.append({"id": current.id, "idle": current.idle, "passed": result.passed, "line": " / ".join(result.lines)})
+	# When a case comes out the wrong way, say what happened to the incident it was about,
+	# there and then. This check has been flaky more than once, and every hunt for the
+	# reason cost a run of the same drill twenty times over waiting for it to happen again;
+	# four lines here turn the next one into a read rather than a hunt.
+	var expected: bool = not current.idle or current.id == "s_dive"
+	if result.passed != expected and run != null:
+		var inc := run._incident()
+		if inc == null:
+			print("     why: no incident of the right kind ever happened")
+		else:
+			print("     why: %s  whistled=%s at %.1f (%.1f s after it), restart=%s to %s, cards=%d, advantage=%s"
+				% [inc.label(), inc.whistled, inc.whistle_time, inc.whistle_time - inc.time,
+				inc.restart_given if inc.restart_given != &"" else "none",
+				inc.restart_team.short if inc.restart_team != null else "-",
+				inc.cards_given.size(), inc.advantage])
+			print("     ended in %s at clock %.1f, %.1f s after the incident"
+				% [Match.Phase.keys()[run.m.phase], run.m.clock, run.m.clock - inc.time])
 	_next.call_deferred()

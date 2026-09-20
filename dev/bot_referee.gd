@@ -15,6 +15,9 @@ var accuracy := 1.0
 var idle := false
 ## Stand where you were put.
 var stay := false
+## The one incident a drill is about, when this bot is refereeing a drill: it is dealt with
+## before anything else the twenty-two players get up to around it.
+var focus: Incident = null
 var trace := false
 
 
@@ -66,7 +69,16 @@ func _physics_process(delta: float) -> void:
 				else:
 					m.wave_flag()
 				return
-			for inc in m.laws.incidents:
+			# In a drill, the incident the drill is about comes first. The players go on
+			# playing around the scripted moment, so the bot could be busy with a shove in
+			# midfield while the foul it is being marked on went by — and the check then
+			# reported a missed foul that was really a queue.
+			var incidents: Array = m.laws.incidents
+			if focus != null and focus in incidents:
+				incidents = incidents.duplicate()
+				incidents.erase(focus)
+				incidents.push_front(focus)
+			for inc in incidents:
 				if _seen.has(inc) or inc.kind in [&"out", &"goal", &"dissent"]:
 					continue
 				# Give an assistant the first chance to flag it.
@@ -79,7 +91,13 @@ func _physics_process(delta: float) -> void:
 					_say("advantage")
 					m.signal_advantage()
 					continue
-				if inc.must_stop and m.clock - inc.time < inc.window:
+				# Anything that must stop, stops — for as long as the match will still link a
+				# whistle to it, rather than for the incident's own few-second window. The
+				# window is a human reaction allowance; when this bot is late it is because
+				# the machine was busy, and a check that then marks the decision missed is
+				# flaky rather than strict. That is what made the advantage and foul drills
+				# fail about one full run in three, always on a different case.
+				if inc.must_stop and m.clock - inc.time < maxf(inc.window, 6.0):
 					_say("whistle for %s" % inc.kind)
 					m.whistle()
 					return

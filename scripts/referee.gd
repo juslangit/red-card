@@ -62,6 +62,9 @@ var _last_step := 0.0
 var _shake := 0.0
 var _card_node: MeshInstance3D
 var _card_material: StandardMaterial3D
+## The hand the card is held in, and the player it is being shown to.
+var _card_hand: BoneAttachment3D
+var _card_for: Footballer
 var _watch_label: Label3D
 var _signal_left := 0.0
 var _body_yaw := 0.0
@@ -140,14 +143,24 @@ func look_transform() -> Transform3D:
 
 
 ## The card, held in the right hand. One mesh, recoloured for yellow or red.
+##
+## The hand is only a place to hold it: where the card sits and which way it faces are set
+## every frame in `_hold_card()`, in the world. Left to the bone's own axes it was twelve
+## centimetres along the hand bone, which runs back down the forearm — so the card sat
+## behind the fist, edge on, and Luqman could not see the card he had just shown.
 func _make_card() -> void:
-	var hand := BoneAttachment3D.new()
-	hand.bone_name = "RightHand"
-	body.skeleton.add_child(hand)
+	_card_hand = BoneAttachment3D.new()
+	_card_hand.bone_name = "RightHand"
+	body.skeleton.add_child(_card_hand)
 	_card_node = MeshInstance3D.new()
+	# The card stands outside the skeleton, on its own, and is placed in the world every
+	# frame. Inside it, everything is in the skeleton's own centimetres, and turning it to
+	# face anybody meant an orthonormal basis that threw that hundredth away: the card came
+	# out seven metres wide and read as a streak across the sky.
+	_card_node.top_level = true
 	var quad := BoxMesh.new()
-	# In bone space, which is centimetres: a real card is 7 x 10.
-	quad.size = Vector3(7.5, 10.5, 0.3)
+	# A real card is 7 x 10 cm.
+	quad.size = Vector3(0.075, 0.105, 0.003)
 	_card_node.mesh = quad
 	_card_material = StandardMaterial3D.new()
 	_card_material.albedo_color = UiTheme.YELLOW
@@ -155,9 +168,8 @@ func _make_card() -> void:
 	_card_material.emission = UiTheme.YELLOW
 	_card_material.emission_energy_multiplier = 0.3
 	_card_node.material_override = _card_material
-	_card_node.position = Vector3(0, 12.0, 2.0)
 	_card_node.visible = false
-	hand.add_child(_card_node)
+	add_child(_card_node)
 
 
 ## A wristwatch on the left wrist, whose face really shows the match time. Raise the
@@ -463,14 +475,43 @@ func card(colour: StringName) -> void:
 	_card_material.albedo_color = c
 	_card_material.emission = c
 	_card_node.visible = true
-	# Held up and out towards the player being booked, high enough for everyone to see
-	# and still in the corner of your own eye.
+	_card_for = who
+	# The arm goes up rather than out: a card held out towards the player puts your own
+	# forearm across the top corner of your view and the card behind it. Straight up, with
+	# only a lean towards him, keeps the hand high and the card clear of it.
 	var toward := (who.global_position - global_position)
 	toward.y = 0.0
-	var aim := (toward.normalized() * 1.1 + Vector3.UP).normalized()
+	var aim := (toward.normalized() * 1.7 + Vector3.UP).normalized()
 	body.arms.set_right(body.arms.to_model(aim), Vector3.ZERO, 1.0)
 	_signal_left = 2.2
+	_hold_card()
 	m.show_card(who, colour)
+
+
+## Puts the card above the fist and turns its face towards the player being booked, every
+## frame it is up. Both of those are world directions: which way a bone happens to point
+## is no way to hold a card.
+func _hold_card() -> void:
+	if not _card_node.visible:
+		return
+	# Above the fist, and a little back towards the eyes, so the hand never covers it.
+	var eye_side := (camera.global_position - _card_hand.global_position)
+	eye_side.y = 0.0
+	if eye_side.length() > 0.01:
+		eye_side = eye_side.normalized() * 0.045
+	else:
+		eye_side = Vector3.ZERO
+	_card_node.global_position = _card_hand.global_position + Vector3.UP * 0.075 + eye_side
+	var face := Vector3.ZERO
+	if _card_for != null and is_instance_valid(_card_for):
+		face = _card_for.global_position - _card_node.global_position
+		face.y = 0.0
+	if face.length() < 0.01:
+		face = _forward()
+		face.y = 0.0
+	# The front of the box is +Z, and look_at points -Z at what it is given: aim it at the
+	# reflection so the face, not the back, is turned towards the player.
+	_card_node.look_at(_card_node.global_position - face.normalized(), Vector3.UP)
 
 
 func wave() -> void:
@@ -488,10 +529,12 @@ func dropped_ball() -> void:
 
 
 func _signals(delta: float) -> void:
+	_hold_card()
 	if _signal_left > 0.0:
 		_signal_left -= delta
 		if _signal_left <= 0.0:
 			_card_node.visible = false
+			_card_for = null
 			if not indirect_arm:
 				body.arms.release_right()
 			body.arms.release_left()

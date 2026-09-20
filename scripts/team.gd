@@ -8,6 +8,10 @@ var short := "HOM"
 var shirt := Color(0.75, 0.15, 0.15)
 var shorts := Color(0.95, 0.95, 0.95)
 var keeper_shirt := Color(0.15, 0.75, 0.35)
+## Socks, and the second colour used for the collar, the cuffs, the sock turnover and the
+## flash on the boots.
+var socks := Color(0.75, 0.15, 0.15)
+var trim := Color(0.95, 0.95, 0.95)
 ## 0 or 1 — which side of the match this is. Home is 0.
 var index := 0
 ## Which way this team is attacking right now: +1 towards +X, -1 towards -X. Swaps at

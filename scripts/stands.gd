@@ -460,4 +460,30 @@ func _merged_person(model: Dictionary) -> ArrayMesh:
 		tool.set_color(colours_all[i])
 		tool.set_normal(turn * normals_all[i])
 		tool.add_vertex(v * scale)
-	return tool.commit()
+	tool.index()
+	var full := tool.commit()
+	if _level.crowd < 2000:
+		return full
+	return _simplified(full, 160)
+
+
+## The same person with far fewer triangles, for the big grounds.
+##
+## Measured on 2026-09-18 on an M2: twelve thousand full-detail spectators were 32 million
+## triangles a frame and the National Stadium ran at ten frames a second. Nobody in the
+## upper tier is seen closely enough to need two thousand triangles, so Godot's own mesh
+## simplifier cuts each one down to the level of detail nearest `target` triangles.
+func _simplified(mesh: ArrayMesh, target: int) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0)
+	var importer := ImporterMesh.new()
+	importer.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	importer.generate_lods(60.0, 60.0, [])
+	var best: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	for lod in importer.get_surface_lod_count(0):
+		var indices := importer.get_surface_lod_indices(0, lod)
+		if indices.size() / 3 >= target:
+			best = indices
+	var out := ArrayMesh.new()
+	arrays[Mesh.ARRAY_INDEX] = best
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out

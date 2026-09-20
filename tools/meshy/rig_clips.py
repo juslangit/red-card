@@ -1,7 +1,11 @@
-"""Puts the badminton animations onto a Meshy character and exports it for the game.
+"""Puts the animations onto the Meshy footballer and exports it for the game.
 
-    blender --background --python tools/meshy/rig_clips.py -- player_blue
-    blender --background --python tools/meshy/rig_clips.py -- player_blue preview
+Carried over from Referee For Fun (tools/meshy/rig_clips.py there), which wrote every
+net sport's clips onto this same character. Red Card adds football's own in
+`football_clips.py` and reads the files from assets/characters/footballer/.
+
+    blender --background --python tools/meshy/rig_clips.py -- footballer
+    blender --background --python tools/meshy/rig_clips.py -- footballer preview football
 
 Meshy generates and rigs the character and throws in a walk and a run, which are two
 of the clips the game needs and two it would be a waste of time to key by hand. It has
@@ -33,6 +37,8 @@ from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
 from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
 from tennis_clips import CLIPS as TENNIS_CLIPS  # noqa: E402
 from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
+from football_clips import CLIPS as FOOTBALL_CLIPS  # noqa: E402
+from football_clips import SHOTS as FOOTBALL_SHOTS  # noqa: E402
 
 # Both sports go into one character.
 #
@@ -43,7 +49,7 @@ from takraw_clips import CLIPS as TAKRAW_CLIPS  # noqa: E402
 # Tennis's are `tn_` and sepak takraw's `st_` for the same reason.
 CLIPS = dict(BADMINTON_CLIPS)
 for _name, _clip in (list(VOLLEYBALL_CLIPS.items()) + list(TENNIS_CLIPS.items())
-                     + list(TAKRAW_CLIPS.items())):
+                     + list(TAKRAW_CLIPS.items()) + list(FOOTBALL_CLIPS.items())):
     if _name in CLIPS:
         raise SystemExit(f"clip name {_name} is claimed by both sports")
     CLIPS[_name] = _clip
@@ -68,7 +74,7 @@ def curves(action):
 
 
 def source(name, suffix=""):
-    return os.path.join(PROJECT, "assets", "meshy", name, f"{name}{suffix}.glb")
+    return os.path.join(PROJECT, "assets", "characters", name, f"{name}{suffix}.glb")
 
 
 # --- reading Meshy's files ------------------------------------------------------
@@ -347,12 +353,74 @@ def _travels(clip):
     return any(MOVE in pose for _frame, pose in clip["keys"])
 
 
+# How much harder a sprint swings than Meshy's run, and how far the body leans into it.
+# 1.35, not more: the rotations are amplified about the joints and the body's root stays
+# where it is, so past about 1.5 the knees fold through each other and the player looks as
+# if he is sinking into the pitch rather than sprinting over it.
+SPRINT_SWING = 1.35
+SPRINT_LEAN = 8.0
+# The thighs and the arms swing harder; the knees and ankles are left as they are, since
+# bending those further is what folds the legs up underneath him.
+SPRINT_BONES = ["LeftUpLeg", "RightUpLeg", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm"]
+
+
+def amplify(action, new_name, bones, factor, lean_degrees=0.0):
+    """A copy of a clip with every rotation on `bones` opened up by `factor`.
+
+    Meshy's run covers 2.7 m/s — a jog. A footballer chasing a ball is doing nearer seven,
+    and playing the jog two and a half times faster to keep the feet from skating looks
+    like a cartoon. So the same cycle is swung harder: each key's rotation is taken further
+    from the rest pose along its own axis, which lengthens the stride without inventing a
+    new gait, and the hips tip forward into it.
+
+    A quaternion cannot be scaled by multiplying its numbers. "More of the same rotation"
+    means the same axis turned through a bigger angle, so each key is taken apart into its
+    axis and angle and put back together with the angle multiplied. (Blender's slerp only
+    interpolates between two rotations, never past one.)
+    """
+    from mathutils import Quaternion
+    copy = action.copy()
+    copy.name = new_name
+    copy.use_fake_user = True
+    channels = {}
+    for curve in curves(copy):
+        path = curve.data_path
+        if not path.endswith("rotation_quaternion"):
+            continue
+        bone = path.split('"')[1] if '"' in path else ""
+        if bone not in bones and not (lean_degrees and bone == "Hips"):
+            continue
+        channels.setdefault(bone, {})[curve.array_index] = curve
+    lean = Quaternion((1.0, 0.0, 0.0), math.radians(lean_degrees))
+    for bone, parts in channels.items():
+        if len(parts) < 4:
+            continue
+        keys = len(parts[0].keyframe_points)
+        for k in range(keys):
+            values = [parts[i].keyframe_points[k].co[1] for i in range(4)]
+            quaternion = Quaternion(values)
+            if bone in bones:
+                axis, angle = quaternion.to_axis_angle()
+                quaternion = Quaternion(axis, angle * factor)
+            if lean_degrees and bone == "Hips":
+                quaternion = quaternion @ lean
+            for i in range(4):
+                point = parts[i].keyframe_points[k]
+                point.co[1] = quaternion[i]
+                point.handle_left[1] = quaternion[i]
+                point.handle_right[1] = quaternion[i]
+    print(f"  made {new_name} from {action.name}: swing x{factor}, lean {lean_degrees} deg")
+    return copy
+
+
 def forge(name):
     rig = load_character(name)
     print(f"forging {name}")
 
     steal_animation(name, "_walking", "walk", rig)
-    steal_animation(name, "_running", "run", rig)
+    running = steal_animation(name, "_running", "run", rig)
+    if running is not None:
+        amplify(running, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN)
     meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
     steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,
@@ -392,14 +460,15 @@ SHOTS = [
 ]
 
 
-def preview(name):
+def preview(name, shots=None):
     """A row of the character in one pose from each clip, so they can be looked at."""
+    shots = shots or SHOTS
     rig = load_character(name)
     body = next(o for o in bpy.data.objects if o.type == "MESH")
     height = 1.8
     spacing = height * 0.78
 
-    for column, (clip_name, key_index) in enumerate(SHOTS):
+    for column, (clip_name, key_index) in enumerate(shots):
         bpy.ops.object.select_all(action="DESELECT")
         rig.select_set(True)
         body.select_set(True)
@@ -424,9 +493,9 @@ def preview(name):
     rig.hide_render = True
     body.hide_render = True
 
-    _camera(len(SHOTS) * spacing, height)
+    _camera(len(shots) * spacing, height)
     _render(os.path.join(HERE, "_preview.png"))
-    print("labels: " + "  |  ".join(f"{c}[{k}]" for c, k in SHOTS))
+    print("labels: " + "  |  ".join(f"{c}[{k}]" for c, k in shots))
 
 
 def _camera(width, height):
@@ -465,6 +534,6 @@ if __name__ == "__main__":
     who = argv[0] if argv else "player_blue"
     bpy.context.scene.render.fps = FPS
     if len(argv) > 1 and argv[1] == "preview":
-        preview(who)
+        preview(who, FOOTBALL_SHOTS if len(argv) > 2 and argv[2] == "football" else None)
     else:
         forge(who)

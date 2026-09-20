@@ -22,3 +22,8 @@ are cut from them with ffmpeg and saved as 48 kHz 16-bit PCM WAV or Ogg.
     sfx get 555042 --name kick ; sfx get 816823 --name kick2
     sfx get 568995 --name metal_whistle
     sfx get 829453 --name stadium_reaction ; sfx get 189821 --name goal_chant
+| `contact/contact_1.wav` | Body contact in a tackle | https://freesound.org/people/insanity54/sounds/276600/ |
+| `contact/contact_2.wav` | A lighter challenge, thud on clothing | https://freesound.org/people/JonasTisell/sounds/496187/ |
+| `crowd/gasp.wav` | The crowd gasping at one the referee did not give | https://freesound.org/people/HowardV/sounds/264376/ |
+| `voices/shout_one.wav` | One player appealing | https://freesound.org/people/metrostock99/sounds/345083/ |
+| `voices/shout_many.wav` | A team appealing together | https://freesound.org/people/khenshom/sounds/527740/ |

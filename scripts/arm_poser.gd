@@ -29,6 +29,12 @@ var left_target_weight := 0.0
 ## How fast an arm comes up, in weight per second. A card is shown briskly.
 var raise_rate := 7.0
 
+## For the referee's own body: the head is shrunk to nothing after the clip has posed
+## it, so the first-person camera, which sits where the eyes are, never sees the inside
+## of its own face. Everything from the neck down stays, which is what the player sees
+## when they look down.
+var hide_head := false
+
 const RIGHT := {"upper": "RightArm", "fore": "RightForeArm", "hand": "RightHand"}
 const LEFT := {"upper": "LeftArm", "fore": "LeftForeArm", "hand": "LeftHand"}
 
@@ -76,6 +82,10 @@ func _process_modification_with_delta(delta: float) -> void:
 	var skeleton := get_skeleton()
 	if skeleton == null:
 		return
+	if hide_head:
+		var head := _bone(skeleton, "Head")
+		if head >= 0:
+			skeleton.set_bone_pose_scale(head, Vector3.ONE * 0.001)
 	right_weight = move_toward(right_weight, right_target_weight, raise_rate * delta)
 	left_weight = move_toward(left_weight, left_target_weight, raise_rate * delta)
 	if right_weight > 0.001:

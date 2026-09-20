@@ -1,0 +1,192 @@
+class_name BotReferee
+extends Node
+
+## A referee for the checks: it reads the truth and does what the Laws say, a moment
+## later, from a sensible position. It exists to drive whole matches headless so the
+## football and the flow of the Laws can be tested without a person. It cheats — it is
+## the one thing in the project allowed to read `Laws` during play.
+
+var m: Match
+var ref: Referee
+var _think := 0.0
+var _seen := {}
+var accuracy := 1.0
+## A referee who does nothing at all, for checking that doing nothing fails.
+var idle := false
+## Stand where you were put.
+var stay := false
+## The one incident a drill is about, when this bot is refereeing a drill: it is dealt with
+## before anything else the twenty-two players get up to around it.
+var focus: Incident = null
+var trace := false
+
+
+func _say(what: String) -> void:
+	if trace:
+		print("   %.2f BOT %s  (phase %s, flag %s)" % [m.clock, what, Match.Phase.keys()[m.phase], m.flag.get("kind", "-")])
+var log_decisions := false
+var _rng := RandomNumberGenerator.new()
+
+
+func setup(match_node: Match, referee: Referee) -> void:
+	m = match_node
+	ref = referee
+	ref.scripted = true
+	_rng.seed = 7
+
+
+func _physics_process(delta: float) -> void:
+	if m == null:
+		return
+	if idle:
+		ref.wish = Vector2.ZERO
+		return
+	if not stay:
+		_position()
+	else:
+		ref.wish = Vector2.ZERO
+	_think -= delta
+	if _think > 0.0:
+		return
+	_think = 0.35
+	match m.phase:
+		Match.Phase.PRE_MATCH:
+			# Somebody has to toss it.
+			if not m.toss_done:
+				m.toss_coin()
+		Match.Phase.KICK_OFF:
+			if m.ai.set_piece_ready:
+				m.whistle()
+		Match.Phase.SET_PIECE:
+			# Wave away whoever has come to argue before restarting. This is where a
+			# protest actually happens: play is already stopped and the kick is being set.
+			m.calm_protests(ref.global_position, 7.0)
+			if m.restart_needs_whistle and m.ai.set_piece_ready:
+				m.whistle()
+		Match.Phase.LIVE:
+			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:
+				m.whistle(true)
+				return
+			# Flags are looked at before the bot's own view of the truth, so the checks see
+			# the assistants being used.
+			if not m.flag.is_empty():
+				if m.flag.get("incident") != null:
+					_say("whistle for the flag")
+					m.whistle()
+				else:
+					m.wave_flag()
+				return
+			# In a drill, the incident the drill is about comes first. The players go on
+			# playing around the scripted moment, so the bot could be busy with a shove in
+			# midfield while the foul it is being marked on went by — and the check then
+			# reported a missed foul that was really a queue.
+			var incidents: Array = m.laws.incidents
+			if focus != null and focus in incidents:
+				incidents = incidents.duplicate()
+				incidents.erase(focus)
+				incidents.push_front(focus)
+			for inc in incidents:
+				if _seen.has(inc) or inc.kind in [&"out", &"goal", &"dissent"]:
+					continue
+				# Give an assistant the first chance to flag it.
+				if m.clock - inc.time < 0.9:
+					continue
+				_seen[inc] = true
+				# A foul where the fouled team is still going: play advantage.
+				if inc.kind == &"foul" and inc.victim != null and inc.victim.state != Footballer.State.FALLEN \
+						and m.ai.possession == inc.victim.team.index:
+					_say("advantage")
+					m.signal_advantage()
+					# Only done with it if the advantage actually attached to it. When it
+					# did not, the referee has signalled into the air and the foul is still
+					# his to deal with — which is how this bot used to drop one about one
+					# full drill run in ten.
+					if inc.advantage:
+						continue
+				# Anything that must stop, stops — for as long as the match will still link a
+				# whistle to it, rather than for the incident's own few-second window. The
+				# window is a human reaction allowance; when this bot is late it is because
+				# the machine was busy, and a check that then marks the decision missed is
+				# flaky rather than strict. That is what made the advantage and foul drills
+				# fail about one full run in three, always on a different case.
+				if inc.must_stop and m.clock - inc.time < maxf(inc.window, 6.0):
+					_say("whistle for %s" % inc.kind)
+					m.whistle()
+					return
+				_say("let %s go (must_stop %s, %.1f s after)" % [inc.kind, inc.must_stop, m.clock - inc.time])
+			# An advantage that did not come is brought back. Law 5 lets the referee play on
+			# and then penalise the original offence if the advantage does not follow within
+			# a few seconds, and a referee who waves play on and then forgets about it is
+			# not the right answer to the drill — which is why leaving this out made the
+			# advantage drill fail whenever the tackle that followed happened to win the
+			# ball back. The match judges the advantage at 2.5 seconds, so the bot looks at
+			# the same moment and by the same measure: who has the ball.
+			if m.advantage_for != null and m.clock - m.advantage_time > 2.5 \
+					and m.ai.possession != m.advantage_for.expected_team.index:
+				_say("advantage did not come — bring it back")
+				m.whistle()
+				return
+			# The ball hit the referee and it mattered: stop for a dropped ball.
+			for inc in m.laws.incidents:
+				if inc.kind == &"hit_referee" and inc.must_stop and not inc.whistled and m.clock - inc.time < 6.0:
+					m.whistle()
+					return
+		Match.Phase.STOPPED, Match.Phase.GOAL:
+			# Deal with the players before getting on with the restart. They take a moment
+			# to reach him, so he waits for them rather than restarting into a protest —
+			# which is what a referee does, and what he is marked on.
+			var coming := false
+			for p: Footballer in m.players:
+				if p.on_pitch and p.state == Footballer.State.PROTESTING \
+						and p.global_position.distance_to(ref.global_position) < 14.0:
+					coming = true
+					break
+			if coming:
+				if m.calm_protests(ref.global_position, 7.0) == 0:
+					return    # still walking in; give them a second
+			if not m.sub_request.is_empty():
+				m.allow_substitution()
+			if m.half_elapsed() >= (45.0 + m.added_minutes_owed()) * 60.0:
+				m.whistle(true)
+				return
+			# Cards still owed from earlier — after advantage, or for dissent.
+			for owed in m.laws.incidents:
+				if m.clock - owed.time > 90.0 or owed.offender == null or not owed.offender.on_pitch:
+					continue
+				var due := owed.expected_card
+				if owed.advantage and owed.spa and not owed.dogso and owed.severity < Laws.Severity.RECKLESS:
+					due = &""
+				if due != &"" and owed.cards_given.is_empty() and owed != m.stopped_for:
+					m.show_card(owed.offender, due)
+			var inc: Incident = m.stopped_for
+			if inc == null:
+				m.award(&"dropped_ball", m.laws.last_player.team if m.laws.last_player else m.teams[0])
+				return
+			if inc.expected_card != &"" and inc.offender != null and inc.offender.on_pitch and inc.cards_given.is_empty():
+				m.show_card(inc.offender, inc.expected_card)
+			var type := inc.expected_restart
+			if type == &"play_on" or type == &"":
+				type = &"dropped_ball"
+			var team: Team = inc.expected_team if inc.expected_team != null else m.teams[0]
+			if log_decisions:
+				print("%5.1f  %-12s -> %s %s" % [m.match_seconds() / 60.0, inc.kind, type, team.name])
+			m.award(type, team)
+		Match.Phase.HALF_TIME:
+			m.start_second_half()
+
+
+## Runs the left diagonal, staying 15-20 m from the ball on the side away from the
+## nearer assistant.
+func _position() -> void:
+	var b := m.ball.global_position
+	var target := b + Vector3(-8.0, 0, 14.0 if b.x < 0.0 else -14.0) * Vector3(signf(b.x) if b.x != 0.0 else 1.0, 1, 1)
+	target = m.spec.clamp_to_field(target, 2.0)
+	var to := target - ref.global_position
+	to.y = 0.0
+	var look := (b - ref.global_position)
+	ref.yaw = atan2(-look.x, -look.z)
+	var forward := Vector3(-sin(ref.yaw), 0, -cos(ref.yaw))
+	var right := Vector3(cos(ref.yaw), 0, -sin(ref.yaw))
+	var local := Vector2(to.dot(right), -to.dot(forward))
+	ref.wish = local.limit_length(1.0) if to.length() > 1.0 else Vector2.ZERO
+	ref.wish_sprint = to.length() > 12.0

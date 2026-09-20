@@ -4,6 +4,7 @@ extends Node3D
 ##   Godot --path . res://dev/looks/_venue.tscn -- village
 
 var shots := [
+	{"name": "sky", "pos": Vector3(-6, 1.8, -20), "look": Vector3(30, 26, 20)},
 	{"name": "high", "pos": Vector3(-20, 28, -62), "look": Vector3(0, 0, 0)},
 	{"name": "pitch", "pos": Vector3(-8, 1.7, -14), "look": Vector3(10, 1.0, 0)},
 	{"name": "close", "pos": Vector3(-44, 1.6, -3), "look": Vector3(-46, 1.0, 1.5)},

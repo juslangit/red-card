@@ -8,8 +8,8 @@ extends Node3D
 ## between them is not only how they look — each level brings its own officiating team,
 ## the way real football does:
 ##
-##   village   club assistants, one from each side, who only flag the ball out of play
-##             and are not neutral. Offside is the referee's alone.
+##   village   club assistants, one from each side: they flag offside and fouls too, but
+##             less sharply than qualified ones, and not neutrally.
 ##   town      two neutral assistant referees.
 ##   league    assistants and a fourth official, who holds up the added-time board.
 ##   final     all of that, and VAR.
@@ -21,6 +21,7 @@ const LEVELS := [
 		"crowd": 60, "stands": "rail", "floodlights": false, "time": "afternoon",
 		"assistants": "club", "fourth_official": false, "var": false,
 		"grass_light": Color(0.36, 0.54, 0.22), "grass_dark": Color(0.33, 0.50, 0.20),
+		"sky": "kloofendal_48d_partly_cloudy_puresky_2k", "sun_dir": Vector3(0.386, 0.737, -0.555),
 	},
 	{
 		"id": "town", "name": "Station Road", "short": "Station Road",
@@ -28,6 +29,7 @@ const LEVELS := [
 		"crowd": 700, "stands": "one", "floodlights": false, "time": "evening",
 		"assistants": "neutral", "fourth_official": false, "var": false,
 		"grass_light": Color(0.31, 0.53, 0.21), "grass_dark": Color(0.27, 0.47, 0.18),
+		"sky": "belfast_sunset_puresky_2k", "sun_dir": Vector3(0.590, 0.043, -0.806),
 	},
 	{
 		"id": "league", "name": "Kestrel Park", "short": "Kestrel Park",
@@ -35,6 +37,7 @@ const LEVELS := [
 		"crowd": 5000, "stands": "four", "floodlights": true, "time": "dusk",
 		"assistants": "neutral", "fourth_official": true, "var": false,
 		"grass_light": Color(0.28, 0.55, 0.21), "grass_dark": Color(0.23, 0.47, 0.17),
+		"sky": "evening_road_01_puresky_2k", "sun_dir": Vector3(0.594, 0.284, -0.752), "sky_energy": 0.5,
 	},
 	{
 		"id": "final", "name": "National Stadium", "short": "National Stadium",
@@ -42,6 +45,7 @@ const LEVELS := [
 		"crowd": 12000, "stands": "bowl", "floodlights": true, "time": "night",
 		"assistants": "neutral", "fourth_official": true, "var": true,
 		"grass_light": Color(0.26, 0.56, 0.22), "grass_dark": Color(0.2, 0.47, 0.17),
+		"sky": "dikhololo_night_2k", "sun_dir": Vector3(-0.45, 0.82, -0.35),
 	},
 ]
 
@@ -202,50 +206,60 @@ func _sky_and_light() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
+	# A real sky, photographed: Poly Haven's CC0 HDRIs, one per time of day. They light the
+	# ground as well as fill the background — the ambient light is taken from the sky — which
+	# is most of what makes the grass and the kits look like they are outdoors.
 	var sky := Sky.new()
-	var sky_material := ProceduralSkyMaterial.new()
-	sky.sky_material = sky_material
+	var panorama := PanoramaSkyMaterial.new()
+	panorama.panorama = load("res://assets/sky/%s.hdr" % level.sky)
+	# Dusk under floodlights needs the sky held back, or the ground reads as daylight.
+	panorama.energy_multiplier = level.get("sky_energy", 1.0)
+	sky.sky_material = panorama
+	sky.radiance_size = Sky.RADIANCE_SIZE_128
 	env.sky = sky
+	# The light comes from where the sun is in the photograph, measured by
+	# tools/sky/sun_from_hdri.py rather than guessed: shadows falling one way under clouds
+	# lit from another is the thing the eye notices without being able to name it. The
+	# night sky has no sun in it (brightness 2 against the midday sky's 31,000), so the
+	# National Stadium keeps its floodlights high overhead.
+	var from_sun: Vector3 = level.sun_dir
+	var up := Vector3.UP if absf(from_sun.y) < 0.98 else Vector3.FORWARD
+	sun.transform = Transform3D(Basis.looking_at(-from_sun, up), Vector3.ZERO)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 1.0
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.ssao_enabled = false
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.fog_enabled = true
 	env.fog_density = 0.0005
+	# Fog paints the sky as well as the air by default, which flattened every photographed
+	# sky into one colour — the reason the first HDRIs looked like no HDRI at all.
+	env.fog_sky_affect = 0.0
 
 	match level.time:
 		"afternoon":
-			sun.rotation_degrees = Vector3(-52, -35, 0)
-			sun.light_energy = 1.25
-			sky_material.sky_top_color = Color(0.32, 0.52, 0.82)
-			sky_material.sky_horizon_color = Color(0.72, 0.8, 0.88)
+			sun.light_energy = 1.5
+			env.tonemap_exposure = 0.85
 			env.fog_light_color = Color(0.72, 0.8, 0.88)
 		"evening":
-			sun.rotation_degrees = Vector3(-24, -60, 0)
-			sun.light_energy = 1.05
+			sun.light_energy = 1.1
+			env.tonemap_exposure = 0.78
 			sun.light_color = Color(1.0, 0.88, 0.72)
-			sky_material.sky_top_color = Color(0.3, 0.44, 0.7)
-			sky_material.sky_horizon_color = Color(0.92, 0.72, 0.52)
 			env.fog_light_color = Color(0.85, 0.7, 0.55)
 		"dusk":
-			sun.rotation_degrees = Vector3(-60, 20, 0)
-			sun.light_energy = 0.95
+			sun.light_energy = 0.7
+			sun.light_color = Color(0.85, 0.88, 1.0)
+			env.tonemap_exposure = 0.8
 			sun.light_color = Color(0.95, 0.95, 1.0)
-			sky_material.sky_top_color = Color(0.08, 0.1, 0.22)
-			sky_material.sky_horizon_color = Color(0.55, 0.38, 0.42)
-			sky_material.ground_bottom_color = Color(0.05, 0.05, 0.06)
 			env.fog_light_color = Color(0.3, 0.26, 0.32)
 		_:
-			# Night: the floodlights are the sun, high and white, and the sky is black.
-			sun.rotation_degrees = Vector3(-65, 30, 0)
-			sun.light_energy = 1.1
+			# Night: the floodlights are the sun, high and white, and the sky is a real
+			# starfield with no sun in it.
+			sun.light_energy = 1.3
+			env.tonemap_exposure = 1.1
 			sun.light_color = Color(0.96, 0.97, 1.0)
-			sky_material.sky_top_color = Color(0.01, 0.012, 0.03)
-			sky_material.sky_horizon_color = Color(0.06, 0.07, 0.1)
-			sky_material.ground_bottom_color = Color(0.02, 0.02, 0.02)
-			sky_material.ground_horizon_color = Color(0.06, 0.07, 0.1)
-			env.ambient_light_energy = 0.7
+			env.ambient_light_energy = 0.35
 			env.fog_light_color = Color(0.08, 0.09, 0.12)
 	add_child(sun)
 	environment = WorldEnvironment.new()

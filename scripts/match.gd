@@ -509,14 +509,22 @@ func _incident_for_whistle() -> Incident:
 func signal_advantage() -> void:
 	if phase != Phase.LIVE:
 		return
-	# Advantage over an assistant's foul flag acknowledges it: he lowers it.
+	# Advantage over an assistant's foul flag acknowledges it: he lowers it. It counts as
+	# answering the flag, and is recorded as such — it used to be cleared silently, so the
+	# report said the flag had never been dealt with at all.
 	if flag.has("foul"):
+		assessor.note_flag(flag, true)
 		for ar in assistants:
 			ar.lower()
 		flag = {}
 	for i in range(laws.incidents.size() - 1, -1, -1):
 		var inc: Incident = laws.incidents[i]
-		if clock - inc.time > 4.0:
+		# The same window a whistle gets. It used to be four seconds flat, so an advantage
+		# signalled a moment late attached to nothing: the arm went up, the offence was
+		# quietly dropped, and the player was told nothing. Signalling late should still
+		# find the foul — being a second slow is a mark against you, not a hole in the
+		# Laws.
+		if clock - inc.time > maxf(inc.window, 6.0):
 			break
 		if inc.kind in [&"foul", &"holding", &"handball"] and not inc.advantage:
 			inc.advantage = true

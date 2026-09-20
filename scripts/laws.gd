@@ -53,6 +53,7 @@ func _new(kind: StringName, where: Vector3) -> Incident:
 	if ref != null:
 		incident.ref_distance = ref.global_position.distance_to(where)
 		incident.ref_view = m.view_quality(where)
+		incident.ref_at = ref.global_position
 	return incident
 
 

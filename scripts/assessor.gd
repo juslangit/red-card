@@ -28,6 +28,9 @@ var _too_far := 0
 var _blocked := 0
 var _distance_sum := 0.0
 var _sample_accum := 0.0
+## Where the referee has been, one point a second of open play. A real assessor's report
+## talks about whether he kept the diagonal; this is what that is drawn from.
+var trail: PackedVector2Array = PackedVector2Array()
 var _distance_run := 0.0
 var _sprint_seconds := 0.0
 var _last_ref_pos := Vector3.INF
@@ -57,6 +60,7 @@ func step(delta: float) -> void:
 		return
 	_sample_accum = 0.0
 	var d: float = ref.global_position.distance_to(m.ball.global_position)
+	trail.append(Vector2(ref.global_position.x, ref.global_position.z))
 	_samples += 1
 	_distance_sum += d
 	if d < 5.0:
@@ -201,6 +205,7 @@ func finish() -> void:
 		"key_right": key_right, "key_total": key_total,
 		"decisions_right": decisions_right, "decisions_total": decisions_total,
 		"positioning": positioning,
+		"trail": trail,
 		"distance_km": _distance_run / 1000.0 * m.clock_scale(),
 		"cards": cards.size(),
 	}

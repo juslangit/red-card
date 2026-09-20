@@ -90,7 +90,12 @@ func _physics_process(delta: float) -> void:
 						and m.ai.possession == inc.victim.team.index:
 					_say("advantage")
 					m.signal_advantage()
-					continue
+					# Only done with it if the advantage actually attached to it. When it
+					# did not, the referee has signalled into the air and the foul is still
+					# his to deal with — which is how this bot used to drop one about one
+					# full drill run in ten.
+					if inc.advantage:
+						continue
 				# Anything that must stop, stops — for as long as the match will still link a
 				# whistle to it, rather than for the incident's own few-second window. The
 				# window is a human reaction allowance; when this bot is late it is because

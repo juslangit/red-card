@@ -81,9 +81,11 @@ func open(report: Dictionary, career_outcome: String) -> void:
 	stats.add_child(_stat("AVERAGE DISTANCE", "%.0f m" % pos.average))
 	stats.add_child(_stat("DISTANCE RUN", "%.1f km" % report.distance_km))
 
-	_body.add_child(UiTheme.label("THE MATCH, DECISION BY DECISION", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	var lines: Array = report.lines.duplicate()
 	lines.sort_custom(func(a, b): return (a.incident.time if a.incident else 0.0) < (b.incident.time if b.incident else 0.0))
+	_body.add_child(UiTheme.label("WHERE YOU WERE", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
+	_body.add_child(_map(report, lines))
+	_body.add_child(UiTheme.label("THE MATCH, DECISION BY DECISION", UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	if lines.is_empty():
 		_body.add_child(Menus.text("Nothing to report — a quiet match."))
 	for line in lines:
@@ -154,6 +156,29 @@ func _line(line: Dictionary) -> Control:
 			play.replay.open(inc.time, "%d'  %s  —  you were %s" % [inc.minute, inc.label(), ref_d], inc.position), 200)
 		row.add_child(b)
 	return row
+
+
+## The positioning map, with a line under it saying how to read it. An assessor's report
+## has this page and the game did not, although it was already keeping every number on it.
+func _map(report: Dictionary, lines: Array) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	var map := PitchMap.new()
+	map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(map)
+	map.setup(play.m.spec, report.get("trail", PackedVector2Array()), lines)
+	# One line, not wrapped: `Menus.text` wraps and five of them in a row squeezed each
+	# other down to a single letter.
+	var key := HBoxContainer.new()
+	key.add_theme_constant_override("separation", 30)
+	key.alignment = BoxContainer.ALIGNMENT_CENTER
+	for part in [["● right", UiTheme.GOOD], ["● wrong", UiTheme.BAD],
+			["○ what you were judging", UiTheme.CHALK],
+			["- - -  your view was blocked", UiTheme.MUTED],
+			["the faint trail is every second of play", UiTheme.MUTED]]:
+		key.add_child(UiTheme.label(part[0], UiTheme.SMALL, part[1], UiTheme.body()))
+	box.add_child(key)
+	return box
 
 
 func _positioning_note(pos: Dictionary) -> Control:

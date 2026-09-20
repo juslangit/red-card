@@ -48,6 +48,8 @@ var points := 0.0
 ## Where the referee was, and how well placed, at the moment it happened.
 var ref_distance := 0.0
 var ref_view := 1.0
+## Where the referee was standing when it happened, for the positioning map in the report.
+var ref_at := Vector3.ZERO
 ## Whether VAR has looked at it.
 var reviewed := false
 var overturned := false

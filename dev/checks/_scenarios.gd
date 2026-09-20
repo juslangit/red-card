@@ -93,7 +93,12 @@ func _process(_d: float) -> void:
 				run.ref.global_position = run.ref.global_position.move_toward(Vector3(mk.global_position.x, 0, mk.global_position.z), 0.4)
 				break
 	if Time.get_ticks_msec() - started > 60000:
-		_done({"passed": false, "lines": ["TIMEOUT"]})
+		# A timeout says nothing on its own, so it says where it stopped: a drill that
+		# hangs is nearly always one waiting for a phase that nothing is going to leave.
+		var inc := run._incident()
+		_done({"passed": false, "lines": ["TIMEOUT in %s at clock %.1f, %s" % [
+			Match.Phase.keys()[run.m.phase], run.m.clock,
+			"no incident yet" if inc == null else "%.1f s after %s" % [run.m.clock - inc.time, inc.label()]]]})
 
 
 func _done(result: Dictionary) -> void:

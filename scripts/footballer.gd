@@ -130,10 +130,17 @@ func _ready() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	skeleton = _model.find_child("Skeleton3D", true, false)
 	_mesh = _model.find_child("char1", true, false)
-	for clip in ["idle", "walk", "run", "backpedal", "shuffle", "ready", "tired", "argue",
-			"celebrate", "vb_ready", "fb_idle", "fb_stand", "fb_lie"]:
-		if _anim.has_animation(clip):
-			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+	# Everything a body can be left standing or running in has to loop, or the clip stops
+	# on its last frame and the player freezes mid-stride while still travelling. This used
+	# to be a list of clip names, and `fb_sprint` was baked on 2026-09-20 without being
+	# added to it, so anybody running flat out froze after two thirds of a second. Going
+	# through the meanings instead means a new clip loops by being wired into CLIPS, which
+	# is the only way it can be reached at all; dev/checks/_clips.tscn holds it to that.
+	for meaning in ["idle", "stand_still", "walk", "run", "sprint", "backpedal", "shuffle",
+			"keeper_ready", "lie", "celebrate", "argue", "tired"]:
+		for clip: String in CLIPS.get(meaning, [meaning]):
+			if _anim.has_animation(clip):
+				_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	_dress()
 	arms = ArmPoser.new()
 	skeleton.add_child(arms)
@@ -225,7 +232,10 @@ func play(meaning: String, blend := 0.2, speed := 1.0) -> void:
 	var clip := _resolve(meaning)
 	if clip == "":
 		return
-	if clip != _clip:
+	# Restarting a clip that has stopped is the belt to the braces above: if a clip ever
+	# reaches this point without looping, the body picks itself up on the next frame
+	# instead of standing frozen until its speed happens to call for something else.
+	if clip != _clip or not _anim.is_playing():
 		_anim.play(clip, blend)
 		_clip = clip
 		_rate = speed

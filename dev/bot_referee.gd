@@ -84,6 +84,18 @@ func _physics_process(delta: float) -> void:
 					m.whistle()
 					return
 				_say("let %s go (must_stop %s, %.1f s after)" % [inc.kind, inc.must_stop, m.clock - inc.time])
+			# An advantage that did not come is brought back. Law 5 lets the referee play on
+			# and then penalise the original offence if the advantage does not follow within
+			# a few seconds, and a referee who waves play on and then forgets about it is
+			# not the right answer to the drill — which is why leaving this out made the
+			# advantage drill fail whenever the tackle that followed happened to win the
+			# ball back. The match judges the advantage at 2.5 seconds, so the bot looks at
+			# the same moment and by the same measure: who has the ball.
+			if m.advantage_for != null and m.clock - m.advantage_time > 2.5 \
+					and m.ai.possession != m.advantage_for.expected_team.index:
+				_say("advantage did not come — bring it back")
+				m.whistle()
+				return
 			# The ball hit the referee and it mattered: stop for a dropped ball.
 			for inc in m.laws.incidents:
 				if inc.kind == &"hit_referee" and inc.must_stop and not inc.whistled and m.clock - inc.time < 6.0:

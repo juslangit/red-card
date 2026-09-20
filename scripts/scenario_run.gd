@@ -19,6 +19,9 @@ var _visited := 0
 var _brief_layer: CanvasLayer
 var _event_time := -1.0
 var _was_set_piece := false
+## When the drill's own clock first saw the incident. The match clock stops whenever play
+## does, so it cannot be used to give up on a drill that has stopped for good.
+var _incident_at := -1.0
 var _arms_player: Footballer = null
 ## The incident this scenario's own script caused. The players go on playing around the
 ## script, so a drill that simply took the first incident of the right kind could end up
@@ -350,18 +353,34 @@ func _check_end() -> void:
 		if t > 14.0:
 			_finish({"passed": false, "lines": ["Nothing happened that needed judging — try again."]})
 		return
+	if _incident_at < 0.0:
+		_incident_at = t
 	# Over when play restarts after the incident, or after long enough with no whistle.
 	if m.phase == Match.Phase.SET_PIECE:
 		_was_set_piece = true
+	var limit: float = 16.0 if def.get("end_on_restart", false) else float(def.get("end_after", 9.0))
 	var restarted := _was_set_piece and m.phase == Match.Phase.LIVE
-	var waited := m.clock - inc.time > float(def.get("end_after", 9.0)) and m.phase == Match.Phase.LIVE and not inc.whistled
+	var waited := m.clock - inc.time > limit and m.phase == Match.Phase.LIVE and not inc.whistled
 	if def.get("end_on_restart", false):
-		waited = m.clock - inc.time > 16.0 and m.phase == Match.Phase.LIVE and not _was_set_piece
-	# In a drill every restart waits for the whistle, so a referee who does nothing leaves
-	# play stopped for good. The moment has passed either way: judge it.
-	var stuck := m.phase == Match.Phase.SET_PIECE and m.restart_needs_whistle \
-		and m.clock - inc.time > float(def.get("end_after", 9.0)) + 4.0
-	if restarted or waited or stuck:
+		waited = m.clock - inc.time > limit and m.phase == Match.Phase.LIVE and not _was_set_piece
+	# And in the end, judge it whatever the ball did next. Two backstops, because a drill
+	# can be left hanging in two different ways.
+	#
+	# The first used to wait for one particular phase — play stopped at a set piece,
+	# needing the whistle — which is only the commonest of the ways a drill ends. A
+	# referee who does nothing never restarts anything, and the loose ball after the
+	# incident can just as well run out for a corner, end in the net or be dead at a
+	# kick-off, each of which is a phase of its own that nothing will move on from. The
+	# dive drill hung on exactly that about one run in three, and the check reported a
+	# timeout instead of a verdict. It waits while the referee is visibly still dealing
+	# with the incident — whistle blown, restart not yet given — because cutting in there
+	# would mark a decision missed that was about to be made.
+	var dealing_with_it: bool = inc.whistled and inc.restart_given == &"" and not inc.advantage
+	var moved_on := m.clock - inc.time > limit + 4.0 and not dealing_with_it
+	# The second ends it whatever state it is in, measured on the drill's own clock rather
+	# than the match's, which stops whenever play does. Nothing waits for ever.
+	var gave_up := t - _incident_at > limit + 20.0
+	if restarted or waited or moved_on or gave_up:
 		_judge(inc)
 
 

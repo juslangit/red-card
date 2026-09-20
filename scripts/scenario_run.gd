@@ -357,7 +357,11 @@ func _check_end() -> void:
 	var waited := m.clock - inc.time > float(def.get("end_after", 9.0)) and m.phase == Match.Phase.LIVE and not inc.whistled
 	if def.get("end_on_restart", false):
 		waited = m.clock - inc.time > 16.0 and m.phase == Match.Phase.LIVE and not _was_set_piece
-	if restarted or waited:
+	# In a drill every restart waits for the whistle, so a referee who does nothing leaves
+	# play stopped for good. The moment has passed either way: judge it.
+	var stuck := m.phase == Match.Phase.SET_PIECE and m.restart_needs_whistle \
+		and m.clock - inc.time > float(def.get("end_after", 9.0)) + 4.0
+	if restarted or waited or stuck:
 		_judge(inc)
 
 

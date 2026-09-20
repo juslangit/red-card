@@ -714,7 +714,9 @@ func _defend(delta: float) -> void:
 func _tackle(defender: Footballer, attacker: Footballer, sliding: bool) -> void:
 	_tackle_cooldown[defender] = 1.6
 	stats.tackles += 1
-	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.45)
+	# Long enough for the clip: the standing tackle plants, reaches and recovers over
+	# about a second, and cutting it at 0.45 s snapped the leg back mid-lunge.
+	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.8)
 	if sliding:
 		defender.velocity = (attacker.global_position - defender.global_position).normalized() * 6.5
 	# From behind: the attacker is facing away from the tackler.
@@ -743,7 +745,9 @@ func _tackle(defender: Footballer, attacker: Footballer, sliding: bool) -> void:
 func force_foul(defender: Footballer, attacker: Footballer, severity: Laws.Severity, sliding: bool,
 		behind: bool, stays_up: bool) -> void:
 	_tackle_cooldown[defender] = 3.0
-	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.45)
+	# Long enough for the clip: the standing tackle plants, reaches and recovers over
+	# about a second, and cutting it at 0.45 s snapped the leg back mid-lunge.
+	defender.one_shot("slide" if sliding else "tackle", 1.4 if sliding else 0.8)
 	_foul(defender, attacker, sliding, behind, severity, 1 if stays_up else 0)
 
 

@@ -70,6 +70,7 @@ var var_hold := false
 var sub_request: Dictionary = {}
 var _next_sub_check := 0.0
 
+var captions: Captions
 var sound: SoundBank
 var paused := false
 var headless := false
@@ -112,6 +113,9 @@ func _ready() -> void:
 
 	for team in teams:
 		_field_team(team)
+	captions = Captions.new()
+	captions.name = "Captions"
+	add_child(captions)
 	sound = SoundBank.new()
 	sound.name = "Sound"
 	add_child(sound)
@@ -348,6 +352,10 @@ func _on_out(where: Vector3, over_goal_line: bool, in_goal: bool) -> void:
 			var_system.on_stoppage()
 	for ar in assistants:
 		ar.on_out(incident)
+	var said: Team = incident.details.get("assistant_said")
+	var who = incident.details.get("assistant")
+	if said != null and who != null:
+		captions.say(who.body, "OUT · %s" % said.short, UiTheme.ACCENT)
 
 
 func _on_hit_referee(speed: float) -> void:
@@ -380,6 +388,7 @@ func _on_incident(incident: Incident) -> void:
 	if incident.kind in [&"foul", &"holding", &"handball"] and incident.victim != null:
 		# The fouled side appeals: an arm up from the nearest teammate.
 		var appealer: Footballer = incident.victim
+		captions.say(appealer, "REF!", appealer.team.shirt)
 		if appealer.state == Footballer.State.PLAY:
 			appealer.arms.set_right(Vector3(0, 1, 0.2), Vector3.ZERO, 1.0)
 			get_tree().create_timer(1.2).timeout.connect(func(): if is_instance_valid(appealer): appealer.arms.release_right())
@@ -534,6 +543,8 @@ func award(type: StringName, to: Team) -> void:
 		if type == &"kick_off":
 			var scoring: Team = goal_incident.details.scoring
 			scoring.goals += 1
+			if goal_incident.offender != null:
+				captions.say(goal_incident.offender, "GOAL!", scoring.shirt)
 			scored.emit(scoring)
 			lost_seconds += 45.0
 			kick_off_team = to
@@ -616,6 +627,8 @@ func show_card(player: Footballer, colour: StringName) -> void:
 	else:
 		_send_off(player)
 	assessor.note_card(player, actual)
+	captions.say(player, {&"yellow": "YELLOW", &"red": "RED", &"second_yellow": "SECOND YELLOW"}.get(actual, "CARD"),
+		UiTheme.YELLOW if actual == &"yellow" else UiTheme.RED)
 	card_shown.emit(player, actual)
 	if var_system != null and not assessor.cards.is_empty():
 		var_system.on_card(player, &"red" if actual in [&"red", &"second_yellow"] and colour == &"red" else actual, assessor.cards.back().incident)
@@ -715,6 +728,7 @@ func raise_flag(assistant, kind: StringName, offender: Footballer, inc: Incident
 	flag = {"assistant": assistant, "kind": kind, "offender": offender, "incident": inc,
 		"where": offender.global_position, "time": clock}
 	flag[String(kind)] = true
+	captions.say(assistant.body, "OFFSIDE!" if kind == &"offside" else "FOUL!", UiTheme.ACCENT)
 	sound.flag_beep()
 
 
@@ -853,6 +867,8 @@ func _react_to(incident: Incident) -> void:
 	for i in mini(count, protesters.size()):
 		var p: Footballer = protesters[i]
 		p.protest(4.0 + i)
+		if i == 0:
+			captions.say(p, "REF!!" if verdict < 0 else "REF!", p.team.shirt)
 		if verdict < 0 and p.aggression > 0.7 and i == 0 and randf() < 0.5:
 			laws.dissent(p)
 			p.set_meta("dissent", clock)

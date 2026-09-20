@@ -207,6 +207,7 @@ func on_out(incident: Incident) -> void:
 	if wrong and incident.kind == &"out":
 		team = m.teams[1] if team == m.teams[0] else m.teams[0]
 	incident.details["assistant_said"] = team
+	incident.details["assistant"] = self
 	_point_for(team, incident)
 
 

@@ -43,6 +43,7 @@ var _message: PanelContainer
 var _message_label: Label
 var _message_left := 0.0
 var _notes: Array[String] = []
+var _legend: PanelContainer
 
 
 func setup(match_node: Match, referee: Referee, player_settings: Settings) -> void:
@@ -64,6 +65,7 @@ func _ready() -> void:
 	_build_watch()
 	_build_notebook()
 	_build_stamina()
+	_build_legend()
 	m.decision_made.connect(_on_decision)
 	m.message.connect(func(text, seconds): _show_message(text, seconds))
 	m.card_shown.connect(_on_card)
@@ -193,6 +195,40 @@ func _build_notebook() -> void:
 	_root.add_child(_notebook)
 
 
+## The controls, always on screen. Luqman asked for this on 2026-09-20: the legend used to
+## be on the pause screen only, so the one moment you needed it — mid-match, having
+## forgotten which key shows a card — was the one moment you could not read it without
+## stopping the game. Kept to the verbs a referee actually uses, two to a row, bottom right.
+const LEGEND := [
+	[&"rc_whistle", "Whistle"], [&"rc_point", "Give restart"],
+	[&"rc_advantage", "Advantage"], [&"rc_wave", "Wave down"],
+	[&"rc_yellow", "Yellow"], [&"rc_red", "Red"],
+	[&"rc_indirect", "Indirect"], [&"rc_drop", "Drop ball"],
+	[&"rc_watch", "Watch"], [&"rc_notebook", "Notes"],
+]
+
+
+func _build_legend() -> void:
+	_legend = PanelContainer.new()
+	_legend.add_theme_stylebox_override("panel", UiTheme.plate(UiTheme.ACCENT, 0.5))
+	_legend.modulate.a = 0.85
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 2)
+	_legend.add_child(grid)
+	for pair in LEGEND:
+		var key := UiTheme.label(Controls.short(settings, pair[0]), UiTheme.SMALL, UiTheme.ACCENT, UiTheme.heavy())
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		key.custom_minimum_size = Vector2(76, 0)
+		grid.add_child(key)
+		var what := UiTheme.label(pair[1], UiTheme.SMALL, UiTheme.CHALK, UiTheme.body())
+		what.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		what.custom_minimum_size = Vector2(150, 0)
+		grid.add_child(what)
+	_root.add_child(_legend)
+
+
 func _build_stamina() -> void:
 	_stamina = ProgressBar.new()
 	_stamina.show_percentage = false
@@ -242,7 +278,7 @@ func _process(delta: float) -> void:
 	_hint_plate.visible = hint != ""
 	if _hint_plate.visible:
 		_hint.text = hint
-		_place(_hint_plate, Vector2(centre.x, size.y - 90), true)
+		_place(_hint_plate, Vector2(centre.x, size.y - 92), true)
 
 	# An assistant's flag.
 	_flag.visible = not m.flag.is_empty()
@@ -268,6 +304,11 @@ func _process(delta: float) -> void:
 	if _notebook.visible:
 		_notebook_label.text = "NOTEBOOK\n\n" + ("\n".join(_notes) if not _notes.is_empty() else "Nothing written yet.")
 		_place(_notebook, Vector2(size.x - 380, size.y * 0.5), true)
+
+	# The legend sits in the bottom right, out of the way of everything else.
+	_legend.reset_size()
+	_legend.position = Vector2(size.x - _legend.get_combined_minimum_size().x - 34, size.y - _legend.get_combined_minimum_size().y - 30)
+	_legend.visible = not ref.holding_watch
 
 	_stamina.value = ref.stamina
 	_stamina.position = Vector2(40, size.y - 60)
@@ -324,25 +365,22 @@ func _place(control: Control, at: Vector2, centred: bool) -> void:
 	control.position = at - (s * 0.5 if centred else Vector2.ZERO)
 
 
+## One line for the moment, if the moment needs one. Short, now that the legend is always
+## on screen: this says what to do, not which key does it.
 func _hint_text() -> String:
-	var w := Controls.short(settings, &"rc_whistle")
 	match m.phase:
 		Match.Phase.KICK_OFF:
-			if m.ai.set_piece_ready:
-				return "%s   Whistle to kick off" % w
-			return "Players taking their places"
+			return "Whistle to kick off" if m.ai.set_piece_ready else "Players taking their places"
 		Match.Phase.SET_PIECE:
 			if m.restart_needs_whistle:
-				return "%s   Whistle for the restart" % w
+				return "Whistle for the restart"
 		Match.Phase.STOPPED:
-			return "Point to give the restart   ·   %s card   ·   %s dropped ball" % [
-				Controls.short(settings, &"rc_yellow") + "/" + Controls.short(settings, &"rc_red"),
-				Controls.short(settings, &"rc_drop")]
+			return "Point to give the restart"
 		Match.Phase.GOAL:
-			return "Point at the centre circle to give the goal — or whistle and give a free kick"
+			return "Point at the centre circle to give the goal — or whistle for an offence"
 		Match.Phase.LIVE:
 			if m.half_elapsed() >= 45.0 * 60.0:
-				return "Hold %s for the long whistle when time is up" % w
+				return "Time is up — hold the whistle to end the half"
 	return ""
 
 

@@ -34,6 +34,7 @@ func _shot(name: String) -> void:
 
 
 var _fps_t := 0.0
+var _bubbled := false
 
 
 func _process(delta: float) -> void:
@@ -72,9 +73,15 @@ func _process(delta: float) -> void:
 				dfn.global_position = att.global_position + Vector3(-0.9, 0, 0.2)
 				m.ai.give_ball(att)
 				m.ai.force_foul(dfn, att, Laws.Severity.RECKLESS, true, true, false)
+				var at_tackler := dfn.global_position + Vector3(0, 1.6, 0) - ref.camera.global_position
+				ref.yaw = atan2(-at_tackler.x, -at_tackler.z)
+				ref.pitch = asin(at_tackler.normalized().y)
 				step = 3
 				wait = 0.0
 		3:
+			if wait > 0.45 and not _bubbled:
+				_bubbled = true
+				_shot("bubble")
 			if wait > 1.0:
 				m.whistle()
 				ref.yaw = -PI * 0.5

@@ -64,6 +64,11 @@ GALLERIES = [
         ("docs/shots/flag_facing.png", "Turned round: a yellow flag marks the assistant, thirty-odd metres away, waggling his flag for a foul."),
         ("docs/shots/fp_final_kickoff.png", "The National Stadium under floodlights - 12,000 simplified spectators at 60 fps on an M2."),
     ]),
+    ("screens-sky", "Real skies, and speech bubbles", "Photographed skies from Poly Haven (CC0), one per ground, with the scene's light aimed from the sun measured out of each one. Bubbles over heads carry what anybody on the field can see — never the truth the referee is judged on.", [
+        ("docs/shots/sky_village.png", "Midday over the village rec: the sky is a photograph, and the ambient light comes from it."),
+        ("docs/shots/sky_final.png", "The Milky Way over the National Stadium. The night sky has no sun in it, so the floodlights do the work."),
+        ("docs/shots/bubble.png", "A tackle in front of the referee: the fouled player shouts REF!, and the controls sit bottom right where they can be read without pausing."),
+    ]),
     ("screens-grounds", "The grounds", "Four grounds, one per rung of the career, all built in code by venue.gd and stands.gd from the Law 1 numbers in pitch_spec.gd.", [
         ("docs/shots/venue_village_high.png", "Riverside Recreation Ground, the first rung: a rail, a clubhouse, trees and sixty people."),
         ("docs/shots/venue_village_crowd.png", "The crowd along the rail, merged into one mesh per model and painted in team colours by crowd.gdshader."),

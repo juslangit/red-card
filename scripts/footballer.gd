@@ -184,8 +184,10 @@ func head_position() -> Vector3:
 	return skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin + Vector3(0, 0.06, 0)
 
 
-func set_hidden_sphere(centre: Vector3, radius_m: float) -> void:
-	_mesh.set_instance_shader_parameter("hide_sphere", Vector4(centre.x, centre.y, centre.z, radius_m))
+## Cuts this body's head out of the picture, for the one player whose eyes the camera is
+## sitting in. The shadow keeps its head (see kit.gdshader).
+func set_head_hidden(hidden: bool) -> void:
+	_mesh.set_instance_shader_parameter("hide_head", 1.0 if hidden else 0.0)
 
 
 func radius() -> float:

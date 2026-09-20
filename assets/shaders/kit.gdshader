@@ -36,9 +36,16 @@ instance uniform vec4 socks_color : source_color = vec4(0.73, 0.24, 0.24, 1.0);
 instance uniform vec4 trim_color : source_color = vec4(0.95, 0.95, 0.95, 1.0);
 instance uniform float skin_tone = 1.0;
 instance uniform float highlight = 0.0;
-// For the referee's own body: everything within this radius of this point is cut away,
-// except in the shadow pass, so the camera at his eyes never sees the inside of his head.
-instance uniform vec4 hide_sphere = vec4(0.0, -1000.0, 0.0, 0.0);
+// For the referee's own body: his head is cut away, except in the shadow pass, so the
+// camera at his eyes never sees the inside of it.
+//
+// This used to be a sphere around the head bone, and Luqman found the hole in it on
+// 2026-09-20: at a sprint the eye sits anywhere between 6 and 19 cm from that bone while
+// the head's own geometry reaches 19.5 cm from it, so the chin and the side of the face
+// came through the near plane while the cut trailed behind. A sphere can always be
+// outrun. The part map already knows which texels are the head, so the head is cut for
+// being the head — no radius to get wrong, and no pose or dropped frame can defeat it.
+instance uniform float hide_head = 0.0;
 // The shirt number: x the tens digit (-1 when there is none), y the units, z 1 for a dark
 // number on a light shirt. Packed into one parameter because a shader may only carry so
 // many per instance.
@@ -59,8 +66,6 @@ const float SHIRT_HEM = 0.575;
 const float SHORTS_HEM = 0.335;
 const float SLEEVE_END = 0.34;
 const float COLLAR = 0.795;
-
-varying vec3 world_pos;
 
 vec3 rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -83,18 +88,16 @@ float folds(float value, float painted_at) {
 	return mix(1.0, clamp(value / painted_at, 0.55, 1.35), 0.75);
 }
 
-void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-
 void fragment() {
-	if (!IN_SHADOW_PASS && distance(world_pos, hide_sphere.xyz) < hide_sphere.w) {
-		discard;
-	}
 	vec3 src = texture(albedo_tex, UV).rgb;
 	vec4 parts = texture(parts_tex, UV);
 	float id = parts.r * 255.0;
 	float along = parts.g;
+	// The head starts at 0.837 up the body, just above the shirt's collar at 0.795, so
+	// cutting it leaves the collar whole and opens it where the neck comes out.
+	if (!IN_SHADOW_PASS && hide_head > 0.5 && is_part(id, HEAD) > 0.5) {
+		discard;
+	}
 	vec3 hsv = rgb2hsv(src);
 
 	// Skin keeps Meshy's painting, darkened or lightened per player. The hands lose their

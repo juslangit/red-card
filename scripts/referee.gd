@@ -117,6 +117,9 @@ func _ready() -> void:
 	# man with no head.
 	for mesh in body.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# Our own head, cut out of our own view for good — it is the head being the head that
+	# hides it, not where it is this frame, so a sprint cannot shake it loose.
+	body.set_head_hidden(true)
 
 	camera = Camera3D.new()
 	camera.fov = 78.0
@@ -319,8 +322,6 @@ func _look(delta: float) -> void:
 	eye += _forward() * (0.13 + 0.15 * down) - Vector3(0, 0.04 * down, 0)
 	camera.global_position = global_position + eye + shake
 	camera.global_rotation = Vector3(pitch, yaw, sin(_bob_phase) * 0.006 * bob_amount)
-	# Cut the head out of our own view (see kit.gdshader).
-	body.set_hidden_sphere(body.head_position(), 0.15)
 
 
 ## Players and the referee sharing the same grass: somebody running into you knocks you

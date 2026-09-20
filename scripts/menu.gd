@@ -16,6 +16,11 @@ var _quick := {"level": 1, "home": 0, "away": 1}
 var _rebinding: StringName = &""
 ## Which page is showing, so Escape knows whether there is anywhere to go back to.
 var _page_name := "main"
+## The stepped setting that was last changed, so the focus can find its way back to it
+## after the page is rebuilt, and whether it claimed the focus this time round — a page
+## that grabs focus for its own first button would otherwise take it straight back.
+var _focus_wanted := ""
+var _focus_taken := false
 var _rebind_button: Button
 
 
@@ -108,6 +113,7 @@ func _process(delta: float) -> void:
 
 
 func _clear() -> void:
+	_focus_taken = false
 	for c in _page.get_children():
 		c.queue_free()
 	for c in _side.get_children():
@@ -151,7 +157,8 @@ func _main() -> void:
 	_page.add_child(Menus.button("Settings", _settings))
 	_page.add_child(Menus.button("Credits", _credits))
 	_page.add_child(Menus.button("Quit", func(): get_tree().quit()))
-	go_career.grab_focus.call_deferred()
+	if not _focus_taken:
+		go_career.grab_focus.call_deferred()
 	if not Game.settings.trained:
 		_side.add_child(Menus.card_tag(UiTheme.YELLOW, "NEW HERE?"))
 		_side.add_child(Menus.text("The training ground teaches every signal in a few minutes: moving, the whistle, pointing, advantage, cards, the flag and the watch.", UiTheme.BODY, UiTheme.CHALK))
@@ -161,6 +168,19 @@ func _gap(height: int) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(0, height)
 	return c
+
+
+## A stepped setting, which rebuilds its page and then puts the focus back on itself —
+## without that, every press of an arrow key would bounce you to the top of the page.
+func _stepped(text: String, step: Callable) -> Button:
+	var b := Menus.chooser(text, func(way: int):
+		_focus_wanted = text.split(":")[0]
+		step.call(way))
+	if _focus_wanted != "" and text.begins_with(_focus_wanted):
+		_focus_wanted = ""
+		_focus_taken = true
+		b.grab_focus.call_deferred()
+	return b
 
 
 func _back() -> Button:
@@ -196,7 +216,8 @@ func _career() -> void:
 			cfg["half"] = Game.half_seconds()
 			Game.start_match(cfg))
 		_page.add_child(go)
-		go.grab_focus.call_deferred()
+		if not _focus_taken:
+			go.grab_focus.call_deferred()
 	_page.add_child(Menus.button("Start a new career", func():
 		Game.career.reset()
 		_career(), UiTheme.BUTTON_WIDTH))
@@ -251,28 +272,32 @@ func _quick_match() -> void:
 	var home := Names.club(_quick.home)
 	var away := Names.club(_quick.away)
 	_page.add_child(_fixture_card(home, away))
-	_page.add_child(Menus.button("Ground: %s" % level.short, func():
-		_quick.level = (_quick.level + 1) % Venue.LEVELS.size()
+	# Stepped, not pressed: left and right move each of these either way. Keeping the
+	# keyboard focus where it was matters here, or choosing a ground would throw you back
+	# to the top of the page on every step.
+	_page.add_child(_stepped("Ground: %s" % level.short, func(way: int):
+		_quick.level = posmod(_quick.level + way, Venue.LEVELS.size())
 		_quick_match()))
-	_page.add_child(Menus.button("Home: %s" % home.name, func():
-		_quick.home = (_quick.home + 1) % Names.CLUBS.size()
+	_page.add_child(_stepped("Home: %s" % home.name, func(way: int):
+		_quick.home = posmod(_quick.home + way, Names.CLUBS.size())
 		if _quick.home == _quick.away:
-			_quick.home = (_quick.home + 1) % Names.CLUBS.size()
+			_quick.home = posmod(_quick.home + way, Names.CLUBS.size())
 		_quick_match()))
-	_page.add_child(Menus.button("Away: %s" % away.name, func():
-		_quick.away = (_quick.away + 1) % Names.CLUBS.size()
+	_page.add_child(_stepped("Away: %s" % away.name, func(way: int):
+		_quick.away = posmod(_quick.away + way, Names.CLUBS.size())
 		if _quick.away == _quick.home:
-			_quick.away = (_quick.away + 1) % Names.CLUBS.size()
+			_quick.away = posmod(_quick.away + way, Names.CLUBS.size())
 		_quick_match()))
-	_page.add_child(Menus.button("Halves: %d minutes" % Game.settings.half_minutes, func():
-		Game.settings.half_minutes = 5 + (Game.settings.half_minutes - 4) % 4
+	_page.add_child(_stepped("Halves: %d minutes" % Game.settings.half_minutes, func(way: int):
+		Game.settings.half_minutes = 5 + posmod(Game.settings.half_minutes - 5 + way, 4)
 		Game.settings.save()
 		_quick_match()))
 	var go := Menus.button("Kick off", func():
 		Game.start_match({"mode": "quick", "level": level.id, "home": _quick.home, "away": _quick.away, "half": Game.half_seconds()}))
 	_page.add_child(go)
 	_page.add_child(_back())
-	go.grab_focus.call_deferred()
+	if not _focus_taken:
+		go.grab_focus.call_deferred()
 	_side.add_child(UiTheme.label(level.name.to_upper(), UiTheme.HEADING, UiTheme.ACCENT, UiTheme.heavy()))
 	_side.add_child(Menus.text(_officials_words(level), UiTheme.BODY, UiTheme.CHALK))
 
@@ -294,7 +319,8 @@ func _list(mode: String) -> void:
 			first = b
 	_page.add_child(_back())
 	if first != null:
-		first.grab_focus.call_deferred()
+		if not _focus_taken:
+			first.grab_focus.call_deferred()
 
 
 func _describe(s: Dictionary) -> void:
@@ -316,17 +342,17 @@ func _settings() -> void:
 	_page.add_child(_slider("Whistle and effects", 0.0, 1.0, s.effects, func(v): s.effects = v))
 	_page.add_child(_slider("Mouse sensitivity", Settings.SENSITIVITY_MIN, Settings.SENSITIVITY_MAX, s.sensitivity, func(v): s.sensitivity = v))
 	_page.add_child(_slider("Head bob", 0.0, 1.0, s.head_bob, func(v): s.head_bob = v))
-	_page.add_child(Menus.button("Invert look: %s" % ("on" if s.invert_y else "off"), func():
+	_page.add_child(_stepped("Invert look: %s" % ("on" if s.invert_y else "off"), func(_way: int):
 		s.invert_y = not s.invert_y
 		s.save()
 		_settings()))
-	_page.add_child(Menus.button("Fullscreen: %s" % ("on" if s.fullscreen else "off"), func():
+	_page.add_child(_stepped("Fullscreen: %s" % ("on" if s.fullscreen else "off"), func(_way: int):
 		s.fullscreen = not s.fullscreen
 		s.apply()
 		s.save()
 		_settings()))
-	_page.add_child(Menus.button("Halves: %d minutes" % s.half_minutes, func():
-		s.half_minutes = 5 + (s.half_minutes - 4) % 4
+	_page.add_child(_stepped("Halves: %d minutes" % s.half_minutes, func(way: int):
+		s.half_minutes = 5 + posmod(s.half_minutes - 5 + way, 4)
 		s.save()
 		_settings()))
 	_page.add_child(_back())

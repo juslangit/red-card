@@ -25,6 +25,39 @@ static func button(text: String, action: Callable, width := UiTheme.BUTTON_WIDTH
 	return b
 
 
+## A setting you step through rather than press: the ground, the clubs, the length of a
+## half. Left and right arrows move it, so do the pad's shoulders and the d-pad, and
+## clicking it or pressing Enter steps it on the way a button always did.
+##
+## Luqman asked for this on 2026-09-20 after playing: "for the selection button like select
+## a stadium, make the arrow key functioning to select by pressing left and right". They
+## had only ever gone forwards, one step per press, so getting back to the ground you had
+## just passed meant going all the way round.
+static func chooser(text: String, step: Callable, width := UiTheme.BUTTON_WIDTH) -> Button:
+	var b := Button.new()
+	# The arrows say what it is: this one is stepped, the ones above and below are pressed.
+	b.text = "‹  %s  ›" % text
+	b.custom_minimum_size = Vector2(width, UiTheme.BUTTON_HEIGHT)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	make_live(b)
+	b.pressed.connect(func():
+		_play(_press_sound())
+		step.call(1))
+	b.gui_input.connect(func(event: InputEvent):
+		if not b.has_focus():
+			return
+		var way := 0
+		if event.is_action_pressed(&"ui_left"):
+			way = -1
+		elif event.is_action_pressed(&"ui_right"):
+			way = 1
+		if way != 0:
+			b.accept_event()
+			_play(_press_sound())
+			step.call(way))
+	return b
+
+
 static func make_live(b: Button) -> void:
 	var plate := UiTheme.live_button_style()
 	for state in ["normal", "hover", "pressed", "focus"]:

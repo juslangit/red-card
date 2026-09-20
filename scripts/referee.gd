@@ -28,7 +28,10 @@ const EYE_HEIGHT := 1.68
 const JOG := 4.3
 const SPRINT := 7.4
 const BACKPEDAL := 3.2
-const SIDESTEP := 3.8
+## Sideways is slower than forwards, and now looks it: the side-step clip covers 1.66 m/s
+## and will stretch to about 2.9 before the feet start to skate. Strafing at very nearly
+## jogging pace was a video game habit, not a referee's.
+const SIDESTEP := 2.9
 const ACCEL := 14.0
 ## Stamina: a full sprint empties it in about twelve seconds; standing refills it in ten.
 const SPRINT_COST := 0.085

@@ -125,4 +125,12 @@ func _done(result: Dictionary) -> void:
 				inc.cards_given.size(), inc.advantage])
 			print("     ended in %s at clock %.1f, %.1f s after the incident"
 				% [Match.Phase.keys()[run.m.phase], run.m.clock, run.m.clock - inc.time])
+			# An assistant's flag is the other half of several of these drills, and it can
+			# go up, be answered, be waved down or be given up on.
+			if run.m.assessor.flags.is_empty():
+				print("     no flag was ever raised")
+			for f in run.m.assessor.flags:
+				print("     flag %s at %.1f: accepted=%s ignored=%s for %s"
+					% [f.flag.get("kind", "?"), f.time, f.accepted, f.get("ignored", false),
+					"nothing" if f.flag.get("incident") == null else f.flag.incident.label()])
 	_next.call_deferred()

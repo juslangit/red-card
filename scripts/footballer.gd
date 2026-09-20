@@ -28,11 +28,11 @@ const CLIPS := {
 	"walk": ["walk"],
 	"run": ["run"],
 	"sprint": ["fb_sprint", "run"],
-	"backpedal": ["backpedal"],
-	"shuffle": ["shuffle"],
+	"backpedal": ["fb_backpedal", "backpedal"],
+	"shuffle": ["fb_side", "shuffle"],
 	"kick": ["fb_kick", "st_serve"],
 	"pass": ["fb_pass", "st_set"],
-	"tackle": ["lunge"],
+	"tackle": ["fb_tackle", "lunge"],
 	"slide": ["fb_slide", "lunge"],
 	"header": ["fb_header", "st_header"],
 	"throw_in": ["fb_throw_in", "st_throw"],
@@ -50,12 +50,23 @@ const CLIPS := {
 }
 
 ## The ground speed each travelling clip really covers at normal playback, so the rate can
-## be matched to the speed the body is moving and the feet do not skate. Measured by
-## dev/checks/_stride.tscn, which follows a foot through each clip — `run` was guessed at
-## 5.2 m/s and is in fact a 2.7 m/s jog, which is why players used to skate at a sprint.
-## The sideways and backwards clips barely travel at all, so they are given a sensible
-## nominal and allowed to slide a little.
-const CLIP_SPEED := {"walk": 1.61, "run": 2.74, "sprint": 3.41, "backpedal": 1.8, "shuffle": 1.6}
+## be matched to the speed the body is moving and the feet do not skate. Every one of these
+## is measured by dev/checks/_stride.tscn, which follows both feet through a full cycle —
+## `run` was once guessed at 5.2 m/s and is in fact a 2.8 m/s jog, which is why players
+## skated at a sprint.
+##
+## Backing off and stepping sideways used to be guessed at too, because Meshy's own clips
+## for them were not gaits: its backpedal swung a foot 25 cm with a foot on the ground 61
+## per cent of the time (0.6 m/s), and its shuffle swung one 10 cm and never lifted it at
+## all (0.3 m/s), under players travelling at three and four. Both are written by hand now
+## in tools/meshy/football_clips.py and measured like the rest.
+const CLIP_SPEED := {"walk": 1.58, "run": 2.81, "sprint": 3.43, "backpedal": 2.65, "shuffle": 1.66}
+## As fast as a body can go on its heels or sideways before it has to turn and run. A
+## defender backing off does exactly this: he holds his ground facing the ball for as long
+## as he can, and when the attacker goes past that he turns and chases. Leaving it out is
+## what had players gliding sideways across the pitch at full pace.
+const BACKPEDAL_LIMIT := 4.0
+const SIDESTEP_LIMIT := 3.0
 ## Above this, the legs change from Meshy's jog to the harder-swinging sprint.
 const SPRINT_FROM := 4.8
 
@@ -432,6 +443,14 @@ func _face(delta: float) -> void:
 	var look := Vector3.ZERO
 	if face_point != null and state != State.OFF:
 		look = (face_point as Vector3) - global_position
+		# Past the speed a man can cover on his heels or sideways, he turns and runs,
+		# whatever he would rather be watching.
+		var flat := Vector3(velocity.x, 0.0, velocity.z)
+		if flat.length() > SIDESTEP_LIMIT:
+			var want := flat.normalized()
+			var away := look.normalized().dot(want) if look.length() > 0.05 else 1.0
+			if away < 0.72 and (flat.length() > BACKPEDAL_LIMIT or absf(away) < 0.62):
+				look = flat
 	elif velocity.length() > 0.4:
 		look = velocity
 	look.y = 0.0
@@ -479,9 +498,9 @@ func _animate() -> void:
 	elif speed < 2.1:
 		_running = false
 	if along < -0.45:
-		play("backpedal", 0.3, clampf(speed / CLIP_SPEED.backpedal, 0.6, 1.9))
+		play("backpedal", 0.3, clampf(speed / CLIP_SPEED.backpedal, 0.7, 1.5))
 	elif along < 0.55:
-		play("shuffle", 0.3, clampf(speed / CLIP_SPEED.shuffle, 0.6, 1.9))
+		play("shuffle", 0.3, clampf(speed / CLIP_SPEED.shuffle, 0.7, 1.75))
 	elif not _running:
 		play("walk", 0.35, clampf(speed / CLIP_SPEED.walk, 0.65, 1.6))
 	elif speed < SPRINT_FROM:

@@ -127,6 +127,108 @@ THROW_RELEASE = lean({
 }, 10)
 
 
+# --- travelling on your heels and sideways ------------------------------------------
+#
+# Meshy's own walk and run are good enough to jog and stride with, and its "backpedal" and
+# "shuffle" are not gaits at all: measured through a full cycle (dev/checks/_stride.tscn),
+# the backpedal swings a foot 25 cm and spends 61 per cent of the cycle on the ground, and
+# the shuffle swings it 10 cm and never lifts it — 0.6 and 0.3 metres a second, played back
+# at up to twice speed under a player travelling at three or four. They did not look like
+# running backwards or stepping sideways; they looked like a man sliding on ice. Both are
+# written here instead.
+#
+# Backing off: on the balls of the feet, body forward over them even though the travel is
+# backwards, knees driving back, short and quick. The toes stay pointed — a backwards
+# runner never puts a heel down.
+
+BACK_RIGHT_BACK = lean({
+    "LeftUpLeg": (-30, 0, -4), "LeftLeg": (30, 0, 0), "LeftFoot": (18, 0, 0),
+    "RightUpLeg": (56, 0, 4), "RightLeg": (34, 0, 0), "RightFoot": (34, 0, 0),
+    "LeftArm": (0, 52, -34), "LeftForeArm": (0, 0, -72),
+    "RightArm": (0, -52, 30), "RightForeArm": (0, 0, 72),
+}, 9)
+
+BACK_PASSING = lean({
+    "LeftUpLeg": (6, 0, -4), "LeftLeg": (46, 0, 0), "LeftFoot": (22, 0, 0),
+    "RightUpLeg": (16, 0, 4), "RightLeg": (40, 0, 0), "RightFoot": (26, 0, 0),
+    "LeftArm": (0, 56, -6), "LeftForeArm": (0, 0, -78),
+    "RightArm": (0, -56, 4), "RightForeArm": (0, 0, 78),
+}, 8)
+
+BACK_LEFT_BACK = lean({
+    "LeftUpLeg": (56, 0, -4), "LeftLeg": (34, 0, 0), "LeftFoot": (34, 0, 0),
+    "RightUpLeg": (-30, 0, 4), "RightLeg": (30, 0, 0), "RightFoot": (18, 0, 0),
+    "LeftArm": (0, 52, 30), "LeftForeArm": (0, 0, -72),
+    "RightArm": (0, -52, -34), "RightForeArm": (0, 0, 72),
+}, 9)
+
+BACK_PASSING_2 = lean({
+    "LeftUpLeg": (16, 0, -4), "LeftLeg": (40, 0, 0), "LeftFoot": (26, 0, 0),
+    "RightUpLeg": (6, 0, 4), "RightLeg": (46, 0, 0), "RightFoot": (22, 0, 0),
+    "LeftArm": (0, 56, 4), "LeftForeArm": (0, 0, -78),
+    "RightArm": (0, -56, -6), "RightForeArm": (0, 0, 78),
+}, 8)
+
+# Stepping sideways, to his left: the lead leg opens away from the body, the trailing one
+# pushes and then follows it in. Feet never cross — a defender who crosses his feet is a
+# defender on the floor. The third angle on a thigh is the one that opens it out: negative
+# takes the left leg away from him, positive the right.
+
+SIDE_OPEN = lean({
+    "LeftUpLeg": (-6, -44, -4), "LeftLeg": (18, 0, 0), "LeftFoot": (8, 0, 0),
+    "RightUpLeg": (-4, 14, 4), "RightLeg": (30, 0, 0),
+    "LeftArm": (0, 58, -10), "LeftForeArm": (0, 0, -54),
+    "RightArm": (0, -58, 10), "RightForeArm": (0, 0, 54),
+}, 7)
+
+SIDE_WIDE = lean({
+    "LeftUpLeg": (-4, -52, -4), "LeftLeg": (10, 0, 0),
+    "RightUpLeg": (-2, -10, 4), "RightLeg": (36, 0, 0), "RightFoot": (18, 0, 0),
+    "LeftArm": (0, 52, -16), "LeftForeArm": (0, 0, -48),
+    "RightArm": (0, -52, 16), "RightForeArm": (0, 0, 48),
+}, 9)
+
+SIDE_PUSH = lean({
+    "LeftUpLeg": (-5, -30, -4), "LeftLeg": (22, 0, 0),
+    "RightUpLeg": (-4, -34, 4), "RightLeg": (26, 0, 0), "RightFoot": (20, 0, 0),
+    "LeftArm": (0, 54, -14), "LeftForeArm": (0, 0, -50),
+    "RightArm": (0, -54, 14), "RightForeArm": (0, 0, 50),
+}, 8)
+
+SIDE_CLOSE = lean({
+    "LeftUpLeg": (-5, -14, -4), "LeftLeg": (26, 0, 0),
+    "RightUpLeg": (-5, -18, 4), "RightLeg": (28, 0, 0), "RightFoot": (10, 0, 0),
+    "LeftArm": (0, 56, -12), "LeftForeArm": (0, 0, -52),
+    "RightArm": (0, -56, 12), "RightForeArm": (0, 0, 52),
+}, 8)
+
+# The standing tackle: plant the outside foot, drop the hips, and stretch the near leg in
+# at the ball with the toe. The arm goes out for balance, which is also what keeps it a
+# tackle rather than a push. Badminton's `lunge` was standing in for this, and it lunges
+# for a shuttle at head height.
+
+TACKLE_PLANT = lean({
+    "LeftUpLeg": (-16, 0, -6), "LeftLeg": (40, 0, 0),
+    "RightUpLeg": (20, 0, 8), "RightLeg": (52, 0, 0), "RightFoot": (18, 0, 0),
+    "LeftArm": (0, 40, -30), "LeftForeArm": (0, 0, -50),
+    "RightArm": (0, -46, -20), "RightForeArm": (0, 0, 40),
+}, 16)
+
+TACKLE_REACH = _moved(lean({
+    "LeftUpLeg": (-6, 0, -10), "LeftLeg": (86, 0, 0), "LeftFoot": (12, 0, 0),
+    "RightUpLeg": (-70, 0, 12), "RightLeg": (8, 0, 0), "RightFoot": (-30, 0, 0),
+    "LeftArm": (0, 82, -26), "LeftForeArm": (0, 0, -24),
+    "RightArm": (0, -24, 52), "RightForeArm": (0, 0, 22),
+}, 30), -0.28, 0.30)
+
+TACKLE_RECOVER = _moved(lean({
+    "LeftUpLeg": (-10, 0, -6), "LeftLeg": (44, 0, 0),
+    "RightUpLeg": (-30, 0, 8), "RightLeg": (34, 0, 0), "RightFoot": (8, 0, 0),
+    "LeftArm": (0, 60, -16), "LeftForeArm": (0, 0, -40),
+    "RightArm": (0, -44, 20), "RightForeArm": (0, 0, 34),
+}, 14), -0.06, 0.08)
+
+
 CLIPS = {
     "fb_stand": {
         "loop": True,
@@ -162,6 +264,37 @@ CLIPS = {
             (7, _with(KICK_STRIKE, RightUpLeg=(-28, 0, -6))),
             (10, _with(KICK_THROUGH, RightUpLeg=(-44, 0, -8), RightLeg=(12, 0, 0))),
             (15, PLAYER_IDLE),
+        ],
+    },
+    "fb_backpedal": {
+        "loop": True,
+        "keys": [
+            (0, BACK_RIGHT_BACK),
+            (4, BACK_PASSING),
+            (8, BACK_LEFT_BACK),
+            (12, BACK_PASSING_2),
+            (16, BACK_RIGHT_BACK),
+        ],
+    },
+    "fb_side": {
+        "loop": True,
+        "keys": [
+            (0, SIDE_CLOSE),
+            (3, SIDE_OPEN),
+            (7, SIDE_WIDE),
+            (11, SIDE_PUSH),
+            (14, SIDE_CLOSE),
+        ],
+    },
+    "fb_tackle": {
+        "loop": False,
+        "keys": [
+            (0, lean(PLAYER_IDLE, 10)),
+            (4, TACKLE_PLANT),
+            (8, TACKLE_REACH),
+            (13, TACKLE_REACH),
+            (19, TACKLE_RECOVER),
+            (26, PLAYER_IDLE),
         ],
     },
     "fb_slide": {

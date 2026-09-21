@@ -120,6 +120,8 @@ figcaption{margin-top:10px;color:var(--muted);font-size:14px;line-height:1.5}
 .rung:last-child{border-color:var(--red)}
 .rung:last-child h3{color:var(--red)}
 
+.trailer { width: 100%; max-width: 1100px; height: auto; display: block; margin: 0 auto 28px;
+  border: 1px solid rgba(255,255,255,.14); background: #000; }
 /* two-column feature */
 .twin{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:34px}
 @media (max-width:800px){.twin{grid-template-columns:1fr}}
@@ -219,6 +221,10 @@ footer .links a:hover{color:var(--gold)}
 <section id="truth">
   <div class="wrap">
     <p class="strip"><b>The premise</b><span>One person decides what happened</span></p>
+    <video class="trailer" controls preload="none" poster="trailer-poster.jpg" width="1280" height="720">
+      <source src="trailer.mp4" type="video/mp4">
+      Your browser cannot play the trailer; <a href="trailer.mp4">download it instead</a>.
+    </video>
     <h2>The game already knows. It is waiting to see if you do.</h2>
     <div class="rule"></div>
 

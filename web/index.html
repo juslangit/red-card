@@ -75,6 +75,21 @@ header.top nav a.get:hover{background:#ff453a;color:#fff}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .pills span{font:600 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:8px 11px;border-radius:2px;background:rgba(8,18,13,.5)}
 
+/* the hero's 3D column */
+.hero .wrap{display:grid;grid-template-columns:1.12fr .88fr;align-items:center;gap:clamp(24px,4vw,56px)}
+.hero-copy{display:flex;flex-direction:column;gap:20px;min-width:0}
+.hero-3d{position:relative;min-width:0;align-self:center}
+.hero-3d canvas{width:100%;height:min(46vh,380px);display:block;touch-action:none;cursor:grab}
+.hero-3d canvas:active{cursor:grabbing}
+.hint3d{margin:6px 0 0;text-align:center;font:600 11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.hint3d span{color:var(--red)}
+.hero-3d[hidden]{display:none}
+@media (max-width:900px){
+  .hero .wrap{grid-template-columns:1fr}
+  .hero-3d{order:-1}
+  .hero-3d canvas{height:min(32vh,260px)}
+}
+
 /* thesis */
 .thesis{display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center;margin-top:30px}
 @media (max-width:900px){.thesis{grid-template-columns:1fr;gap:30px}}
@@ -182,6 +197,7 @@ footer .links a:hover{color:var(--gold)}
   <img class="hero-img" src="img/key-art.jpg" alt="A referee holds a red card above his head under stadium floodlights in the rain">
   <div class="hero-veil"></div>
   <div class="wrap">
+   <div class="hero-copy">
     <h1>Red <em>Card</em></h1>
     <p class="tag">You are the referee. <i>Not the footballer.</i></p>
     <p class="sub">Eleven a side, on foot, for the full ninety. The match is simulated for real, so the truth of every tackle, every offside and every ball over the line already exists. Your job is to be in the right place to see it — and to get it right in front of thirty thousand people who are certain you did not.</p>
@@ -192,6 +208,11 @@ footer .links a:hover{color:var(--gold)}
     <div class="pills">
       <span>In testing</span><span>macOS &amp; Windows</span><span>Godot 4.7.2</span><span>Keyboard, mouse &amp; gamepad</span><span>Single player</span><span>Free</span>
     </div>
+   </div>
+   <div class="hero-3d" id="hero3d">
+     <canvas id="scene3d" aria-hidden="true"></canvas>
+     <p class="hint3d"><span>The ball</span> · drag to turn it</p>
+   </div>
   </div>
 </div>
 
@@ -396,6 +417,161 @@ footer .links a:hover{color:var(--gold)}
   var badge = card.querySelector('.yours');
   if (badge) badge.hidden = false;
   document.getElementById('plats').prepend(card);
+})();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* The card, held up in the rain under floodlights - the single image the game is named
+   for. Geometry only, no loaded model, so the page carries nothing extra. */
+(function(){
+  var host = document.getElementById('hero3d');
+  var canvas = document.getElementById('scene3d');
+  function giveUp(){ if (host) host.hidden = true; }
+  if (!host || !canvas || !window.THREE) return giveUp();
+
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+  } catch (e) { return giveUp(); }
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  camera.position.set(0, 0, 8);
+
+  var rig = new THREE.Group();
+  scene.add(rig);
+
+  /* A football, built as real panels rather than a painted texture: a white sphere with
+     twelve black pentagons set at the vertex directions of an icosahedron, which is
+     exactly where they sit on a real 32-panel ball. Placing geometry avoids guessing at
+     Three's sphere UV convention, and the panels catch the floodlight properly. */
+  var ball = new THREE.Mesh(
+    new THREE.SphereGeometry(1.45, 48, 32),
+    new THREE.MeshStandardMaterial({ color: 0xF4F6F4, roughness: 0.52, metalness: 0.02 })
+  );
+  rig.add(ball);
+
+  var PHI = (1 + Math.sqrt(5)) / 2;
+  var verts = [];
+  [-1, 1].forEach(function(a){ [-PHI, PHI].forEach(function(b){
+    verts.push([0, a, b], [a, b, 0], [b, 0, a]);
+  }); });
+  var panelMat = new THREE.MeshStandardMaterial({ color: 0x14181A, roughness: 0.6, metalness: 0.02 });
+  var seen = {};
+  verts.forEach(function(v){
+    var d = new THREE.Vector3(v[0], v[1], v[2]).normalize();
+    var key = d.toArray().map(function(n){ return n.toFixed(3); }).join(',');
+    if (seen[key]) return;                      // the loop above repeats each vertex
+    seen[key] = 1;
+    var panel = new THREE.Mesh(new THREE.CircleGeometry(0.46, 5), panelMat);
+    // A flat pentagon at radius < the sphere's has its middle buried and only its edges
+    // showing, which reads as a ring rather than a panel. Sit it just proud of the surface.
+    panel.position.copy(d).multiplyScalar(1.452);
+    panel.lookAt(d.clone().multiplyScalar(4));
+    rig.add(panel);
+  });
+
+  /* Rain, falling past it through the floodlight. Points are cheap and read as streaks
+     at this size without needing a line for each drop. */
+  var DROPS = 260, pos = new Float32Array(DROPS * 3), fall = [];
+  function reseed(i, high){
+    pos[i*3]     = (Math.random() - 0.5) * 11;
+    pos[i*3 + 1] = high ? 3 + Math.random() * 3 : (Math.random() - 0.5) * 7;
+    pos[i*3 + 2] = (Math.random() - 0.5) * 5 - 0.5;
+    fall[i] = 2.6 + Math.random() * 3.4;
+  }
+  for (var i = 0; i < DROPS; i++) reseed(i, false);
+  var rgeo = new THREE.BufferGeometry();
+  rgeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  var rain = new THREE.Points(rgeo, new THREE.PointsMaterial({
+    color: 0xD6E9FA, size: 0.055, transparent: true, opacity: 0.5,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  scene.add(rain);
+
+  /* Floodlight: one hard white key from high front, a cold back rim to lift the card off
+     the page, and just enough ambient that the unlit face is not black. */
+  var key = new THREE.DirectionalLight(0xF2FAFF, 2.0);
+  key.position.set(2.4, 4.2, 3.4);
+  scene.add(key);
+  var rim = new THREE.DirectionalLight(0x9FC6EA, 1.1);
+  rim.position.set(-3.4, 1.2, -2.6);
+  scene.add(rim);
+  var bounce = new THREE.DirectionalLight(0x3F9A61, 0.5);   // the pitch, from below
+  bounce.position.set(0, -3, 1.5);
+  scene.add(bounce);
+  scene.add(new THREE.AmbientLight(0x2d3a34, 0.7));
+
+  var spin = { x: 0.22, y: -0.42 }, drag = null, idle = 0;
+  function down(e){
+    drag = { x: (e.touches ? e.touches[0].clientX : e.clientX),
+             y: (e.touches ? e.touches[0].clientY : e.clientY) };
+    idle = 0;
+  }
+  function move(e){
+    if (!drag) return;
+    var x = e.touches ? e.touches[0].clientX : e.clientX;
+    var y = e.touches ? e.touches[0].clientY : e.clientY;
+    spin.y += (x - drag.x) * 0.01;
+    spin.x = Math.max(-0.9, Math.min(0.9, spin.x + (y - drag.y) * 0.006));
+    drag.x = x; drag.y = y;
+    if (e.cancelable) e.preventDefault();
+  }
+  function up(){ drag = null; }
+  canvas.addEventListener('mousedown', down);
+  canvas.addEventListener('touchstart', down, { passive: true });
+  window.addEventListener('mousemove', move);
+  window.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('mouseup', up);
+  window.addEventListener('touchend', up);
+
+  function size(){
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (!cw || !ch) return;
+    renderer.setSize(cw, ch, false);
+    camera.aspect = cw / ch;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', size);
+
+  var visible = true;
+  if (window.IntersectionObserver) {
+    new IntersectionObserver(function(e){ visible = e[0].isIntersecting; },
+                             { threshold: 0.01 }).observe(canvas);
+  }
+
+  var clock = new THREE.Clock();
+  function frame(){
+    requestAnimationFrame(frame);
+    if (!visible) { clock.getDelta(); return; }
+    var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+
+    if (!drag && !reduced) { idle += dt; if (idle > 0.6) spin.y += dt * 0.3; }
+    rig.rotation.y = spin.y;
+    rig.rotation.x = spin.x;
+    if (!reduced) {
+      rig.position.y = Math.sin(t * 1.15) * 0.06;
+      rig.rotation.z = 0.18 + Math.sin(t * 0.7) * 0.05;   // a ball in flight is never level
+    }
+
+    if (!reduced) {
+      var a = rain.geometry.attributes.position;
+      for (var i = 0; i < DROPS; i++) {
+        var y = a.getY(i) - fall[i] * dt;
+        if (y < -3.6) { reseed(i, true); y = a.getY(i); }
+        else a.setY(i, y);
+      }
+      a.needsUpdate = true;
+    }
+
+    renderer.render(scene, camera);
+  }
+  size();
+  frame();
 })();
 </script>
 </body>

@@ -38,6 +38,10 @@ func _ready() -> void:
 	add_child(_camera)
 	_camera.current = true
 
+	# The title sequence, once a session: an empty ground, the name, and in. It is the
+	# first thing a room full of people sees, and the menu was starting cold.
+	var opening := Cutscene.new()
+	add_child(opening)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_ui = Control.new()
@@ -95,6 +99,12 @@ func _ready() -> void:
 	_side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side_scroll.add_child(_side)
 
+	if not Game.title_seen:
+		Game.title_seen = true
+		_ui.visible = false
+		opening.play(Cutscenes.title(null), func():
+			_ui.visible = true
+			_camera.current = true)
 	var page: String = Game.pending.get("page", "")
 	match page:
 		"career":

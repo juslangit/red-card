@@ -18,6 +18,9 @@ var _before := ""
 
 
 func _ready() -> void:
+	# No title sequence: it hides the menu while it plays, which is right for a player
+	# and useless for a check that wants to press the buttons.
+	Game.title_seen = true
 	menu = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
 

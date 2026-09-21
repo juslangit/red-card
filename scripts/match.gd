@@ -41,6 +41,9 @@ var phase := Phase.PRE_MATCH
 ## What this match is, when it is more than a match: "CUP FINAL". Shown beside the half on
 ## the score bug, so the one you have climbed four levels for does not look like a Tuesday.
 var occasion := ""
+## True while the teams are walking out before kick-off: they are going somewhere and are
+## not to be drifted about by the idle behaviour.
+var walking_out := false
 var half := 1
 ## Seconds since the match began, running through stoppages the way a football clock does.
 var clock := 0.0
@@ -320,6 +323,8 @@ func _protesters_come_to_you() -> void:
 
 
 func _idle_players(_delta: float) -> void:
+	if walking_out:
+		return
 	for p: Footballer in players:
 		if not p.can_move():
 			continue

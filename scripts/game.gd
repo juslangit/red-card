@@ -8,6 +8,8 @@ extends Node
 
 var settings: Settings
 var career: Career
+## The title sequence plays once a session, not every time you back out to the menu.
+var title_seen := false
 ## What the next Play scene should set up. See `start_match`.
 var pending: Dictionary = {}
 ## What the last one produced, for the report screen.

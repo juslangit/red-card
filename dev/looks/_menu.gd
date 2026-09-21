@@ -8,6 +8,8 @@ var i := 0
 
 
 func _ready() -> void:
+	# The menu pages, not the opening — dev/looks/_title.tscn films that.
+	Game.title_seen = true
 	menu = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
 

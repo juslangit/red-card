@@ -24,7 +24,7 @@ const SAMPLES := 64
 
 var anim: AnimationPlayer
 var skel: Skeleton3D
-var clips := ["walk", "run", "fb_sprint", "fb_backpedal", "backpedal", "fb_side", "shuffle"]
+var clips := ["walk", "run", "fb_run", "fb_sprint", "fb_backpedal", "fb_side"]
 var at := 0
 var frame := 0
 var _low := Vector3.ZERO

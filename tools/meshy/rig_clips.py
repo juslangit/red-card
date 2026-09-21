@@ -353,11 +353,28 @@ def _travels(clip):
     return any(MOVE in pose for _frame, pose in clip["keys"])
 
 
+# Meshy's run is a jog with its arms almost by its sides and a bolt-upright back. Luqman
+# played it and said it did not look like a person running, and the legs were never the
+# problem: an upright torso and still arms is what reads as wrong, because the arms are
+# what a runner's rhythm is carried in. `fb_run` opens the arms right up, lengthens the
+# thigh swing a little, and tips the whole body into it.
+RUN_UPPER_ARMS = ["LeftArm", "RightArm"]
+RUN_FOREARMS = ["LeftForeArm", "RightForeArm"]
+RUN_LEGS = ["LeftUpLeg", "RightUpLeg"]
+# The shoulder does the swinging and the elbow only holds its bend: opening both by the
+# same amount threw the hands up past his chin, which is a man surrendering, not running.
+# Gently. Amplifying a rotation opens every part of it, and Meshy's arms carry an outward
+# lean as well as a swing — at 1.75 he ran with his arms spread like a man on a tightrope.
+RUN_ARM_SWING = 1.3
+RUN_FOREARM_SWING = 1.15
+RUN_LEG_SWING = 1.12
+RUN_LEAN = 9.0
+
 # How much harder a sprint swings than Meshy's run, and how far the body leans into it.
 # 1.35, not more: the rotations are amplified about the joints and the body's root stays
 # where it is, so past about 1.5 the knees fold through each other and the player looks as
 # if he is sinking into the pitch rather than sprinting over it.
-SPRINT_SWING = 1.35
+SPRINT_SWING = 1.55
 SPRINT_LEAN = 8.0
 # The thighs and the arms swing harder; the knees and ankles are left as they are, since
 # bending those further is what folds the legs up underneath him.
@@ -420,7 +437,13 @@ def forge(name):
     steal_animation(name, "_walking", "walk", rig)
     running = steal_animation(name, "_running", "run", rig)
     if running is not None:
-        amplify(running, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN)
+        # Three passes: the shoulders open a long way, the elbows a little, the thighs
+        # less again, and the whole body tips forward at the end of it.
+        shoulders = amplify(running, "fb_run_shoulders", RUN_UPPER_ARMS, RUN_ARM_SWING)
+        elbows = amplify(shoulders, "fb_run_elbows", RUN_FOREARMS, RUN_FOREARM_SWING)
+        run = amplify(elbows, "fb_run", RUN_LEGS, RUN_LEG_SWING, RUN_LEAN)
+        # And the sprint is that run again, harder and further over.
+        amplify(run, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN)
     meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
     steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,

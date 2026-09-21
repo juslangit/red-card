@@ -26,7 +26,7 @@ const CLIPS := {
 	"idle": ["fb_idle", "ready", "idle"],
 	"stand_still": ["fb_stand", "idle"],
 	"walk": ["walk"],
-	"run": ["run"],
+	"run": ["fb_run", "run"],
 	"sprint": ["fb_sprint", "run"],
 	"backpedal": ["fb_backpedal", "backpedal"],
 	"shuffle": ["fb_side", "shuffle"],
@@ -61,7 +61,7 @@ const CLIPS := {
 ## per cent of the time (0.6 m/s), and its shuffle swung one 10 cm and never lifted it at
 ## all (0.3 m/s), under players travelling at three and four. Both are written by hand now
 ## in tools/meshy/football_clips.py and measured like the rest.
-const CLIP_SPEED := {"walk": 1.58, "run": 2.81, "sprint": 3.43, "backpedal": 2.65, "shuffle": 1.66}
+const CLIP_SPEED := {"walk": 1.58, "run": 3.01, "sprint": 3.99, "backpedal": 2.65, "shuffle": 1.66}
 ## As fast as a body can go on its heels or sideways before it has to turn and run. A
 ## defender backing off does exactly this: he holds his ground facing the ball for as long
 ## as he can, and when the attacker goes past that he turns and chases. Leaving it out is
@@ -543,9 +543,9 @@ func _animate() -> void:
 	elif not _running:
 		play("walk", 0.35, clampf(speed / CLIP_SPEED.walk, 0.65, 1.6))
 	elif speed < SPRINT_FROM:
-		play("run", 0.35, clampf(speed / CLIP_SPEED.run, 0.8, 1.6))
+		play("run", 0.35, clampf(speed / CLIP_SPEED.run, 0.85, 1.45))
 	else:
-		play("sprint", 0.35, clampf(speed / CLIP_SPEED.sprint, 0.85, 1.9))
+		play("sprint", 0.35, clampf(speed / CLIP_SPEED.sprint, 0.9, 1.8))
 
 
 ## Tips the body over about its feet, in the direction of the fall. The model is put

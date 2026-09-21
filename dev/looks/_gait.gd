@@ -11,8 +11,8 @@ extends Node3D
 
 const GAITS := [
 	{"name": "walk", "speed": 1.6, "face": Vector3.FORWARD},
-	{"name": "jog", "speed": 4.3, "face": Vector3.FORWARD},
-	{"name": "sprint", "speed": 7.2, "face": Vector3.FORWARD},
+	{"name": "jog", "speed": 4.3, "face": Vector3.FORWARD, "shots": 8, "every": 0.085},
+	{"name": "sprint", "speed": 7.2, "face": Vector3.FORWARD, "shots": 8, "every": 0.075},
 	{"name": "backpedal", "speed": 3.0, "face": Vector3.BACK},
 	{"name": "sidestep", "speed": 2.8, "face": Vector3.LEFT},
 	# Running a bend: he should lean into it rather than pivot on the spot.
@@ -118,7 +118,7 @@ func _process(delta: float) -> void:
 		player.face_point = null
 		player.puppet(going, gait.face as Vector3)
 	wait += delta
-	if wait > 0.12:
+	if wait > float(gait.get("every", 0.12)):
 		wait = 0.0
 		get_viewport().get_texture().get_image().save_png(
 			"res://dev/shots/gait_%s_%d.png" % [gait.name, shot])

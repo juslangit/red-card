@@ -29,6 +29,10 @@ var at := 0
 var frame := 0
 var _low := Vector3.ZERO
 var _track := {}
+var _tilted := 0
+var _lean_sum := 0.0
+var _tilt_sum := 0.0
+var _lean_n := 0.0
 
 
 func _ready() -> void:
@@ -54,6 +58,17 @@ func _process(_delta: float) -> void:
 	anim.play(clip)
 	anim.seek(a.length * float(frame) / SAMPLES, true)
 	skel.force_update_all_bone_transforms()
+	# The torso, every frame, so the lean reported is the lean through the cycle rather
+	# than whatever the pose happened to be on the last one.
+	var hips_now := skel.find_bone("Hips")
+	var head_now := skel.find_bone("Head")
+	if hips_now >= 0 and head_now >= 0:
+		var spine: Vector3 = (skel.get_bone_global_pose(head_now).origin
+			- skel.get_bone_global_pose(hips_now).origin).normalized()
+		# In the skeleton's own space this character faces +Z; +X is still his left.
+		_lean_sum += rad_to_deg(asin(clampf(spine.z, -1.0, 1.0)))
+		_tilt_sum += rad_to_deg(asin(clampf(spine.x, -1.0, 1.0)))
+		_lean_n += 1
 	for side in ["LeftFoot", "RightFoot"]:
 		var place := _foot(side)
 		var seen: Array = _track.get(side, [])
@@ -85,6 +100,16 @@ func _process(_delta: float) -> void:
 	var travel: float = (lines[0].travel + lines[1].travel) * 0.5
 	var contact: float = (lines[0].contact + lines[1].contact) * 0.5
 	var lift: float = (lines[0].lift + lines[1].lift) * 0.5
+	# How the body is carried: forward lean is a gait, sideways tilt is a fault. Luqman
+	# spotted the players running canted over to one side on 2026-09-21 — the lean in
+	# `amplify()` was being applied about the hip bone's own X axis, which on a glTF rig is
+	# whatever the exporter left it as, so nine degrees of forward lean came out sideways.
+	var forward_lean: float = _lean_sum / maxf(_lean_n, 1.0)
+	var side_tilt: float = _tilt_sum / maxf(_lean_n, 1.0)
+	if absf(side_tilt) > 2.5:
+		_tilted += 1
+		print("BAD  %s carries a %.1f degree sideways tilt" % [clip, side_tilt])
+	print("           leaning %.0f deg forward, %.1f deg sideways" % [forward_lean, side_tilt])
 	print("%-10s %.2f s  swings %.2f m %-9s  %.0f%% of the cycle on the ground, lifts %.2f m  → %.2f m/s"
 		% [clip, a.length, travel, "sideways" if lines[0].sideways else "forwards",
 		contact * 100.0, lift, travel * 2.0 / a.length])
@@ -92,5 +117,9 @@ func _process(_delta: float) -> void:
 	at += 1
 	frame = 0
 	_track.clear()
+	_lean_sum = 0.0
+	_tilt_sum = 0.0
+	_lean_n = 0.0
 	if at >= clips.size():
-		get_tree().quit()
+		print("%d clip(s) carry a sideways tilt" % _tilted)
+		get_tree().quit(1 if _tilted > 0 else 0)

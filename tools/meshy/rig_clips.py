@@ -368,20 +368,22 @@ RUN_LEGS = ["LeftUpLeg", "RightUpLeg"]
 RUN_ARM_SWING = 1.3
 RUN_FOREARM_SWING = 1.15
 RUN_LEG_SWING = 1.12
-RUN_LEAN = 9.0
+# Meshy's run already carries fifteen degrees of forward lean, which is about right for a
+# jog, so the run adds none. The sprint leans further over, as a sprint does.
+RUN_LEAN = 0.0
 
 # How much harder a sprint swings than Meshy's run, and how far the body leans into it.
 # 1.35, not more: the rotations are amplified about the joints and the body's root stays
 # where it is, so past about 1.5 the knees fold through each other and the player looks as
 # if he is sinking into the pitch rather than sprinting over it.
 SPRINT_SWING = 1.55
-SPRINT_LEAN = 8.0
+SPRINT_LEAN = 5.0
 # The thighs and the arms swing harder; the knees and ankles are left as they are, since
 # bending those further is what folds the legs up underneath him.
 SPRINT_BONES = ["LeftUpLeg", "RightUpLeg", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm"]
 
 
-def amplify(action, new_name, bones, factor, lean_degrees=0.0):
+def amplify(action, new_name, bones, factor, lean_degrees=0.0, rig=None):
     """A copy of a clip with every rotation on `bones` opened up by `factor`.
 
     Meshy's run covers 2.7 m/s — a jog. A footballer chasing a ball is doing nearer seven,
@@ -408,7 +410,22 @@ def amplify(action, new_name, bones, factor, lean_degrees=0.0):
         if bone not in bones and not (lean_degrees and bone == "Hips"):
             continue
         channels.setdefault(bone, {})[curve.array_index] = curve
-    lean = Quaternion((1.0, 0.0, 0.0), math.radians(lean_degrees))
+    # The lean has to be applied in the world's axes, not the hip bone's own.
+    #
+    # Luqman watched the players run and said they were tilted to one side. They were: this
+    # used to multiply in a rotation about the bone's local X, and on a glTF rig a bone's
+    # axes are whatever the exporter left them as — so "nine degrees forward" came out as
+    # nine degrees of lean to his left. The rotation is built in world axes and then taken
+    # into the bone's frame through its rest matrix, which is what `pose_bone` does for
+    # every hand-keyed pose in this project.
+    lean = Quaternion()
+    if lean_degrees and rig is not None:
+        rest = rig.pose.bones["Hips"].bone.matrix_local.to_3x3()
+        # Measured, not guessed: dev/checks/_stride.tscn reports the average lean through
+        # a cycle, and with the other sign it was taking Meshy's own forward lean *off*
+        # them — the sprint came out leaning two degrees backwards.
+        forward = Matrix.Rotation(math.radians(lean_degrees), 3, "X")
+        lean = (rest.inverted() @ forward @ rest).to_quaternion()
     for bone, parts in channels.items():
         if len(parts) < 4:
             continue
@@ -420,7 +437,9 @@ def amplify(action, new_name, bones, factor, lean_degrees=0.0):
                 axis, angle = quaternion.to_axis_angle()
                 quaternion = Quaternion(axis, angle * factor)
             if lean_degrees and bone == "Hips":
-                quaternion = quaternion @ lean
+                # Before, not after: the lean happens to the body the clip has already
+                # posed, rather than the clip happening to a leaning body.
+                quaternion = lean @ quaternion
             for i in range(4):
                 point = parts[i].keyframe_points[k]
                 point.co[1] = quaternion[i]
@@ -441,9 +460,9 @@ def forge(name):
         # less again, and the whole body tips forward at the end of it.
         shoulders = amplify(running, "fb_run_shoulders", RUN_UPPER_ARMS, RUN_ARM_SWING)
         elbows = amplify(shoulders, "fb_run_elbows", RUN_FOREARMS, RUN_FOREARM_SWING)
-        run = amplify(elbows, "fb_run", RUN_LEGS, RUN_LEG_SWING, RUN_LEAN)
+        run = amplify(elbows, "fb_run", RUN_LEGS, RUN_LEG_SWING, RUN_LEAN, rig)
         # And the sprint is that run again, harder and further over.
-        amplify(run, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN)
+        amplify(run, "fb_sprint", SPRINT_BONES, SPRINT_SWING, SPRINT_LEAN, rig)
     meshy_smash = steal_animation(name, "_smash", "smash", rig, frames=SMASH_FRAMES,
                                   drop=HIPS_SIDEWAYS_AND_FORWARDS)
     steal_animation(name, "_smash", "smash_windup", rig, frames=SMASH_WINDUP_FRAMES,

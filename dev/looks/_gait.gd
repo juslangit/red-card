@@ -12,6 +12,8 @@ extends Node3D
 const GAITS := [
 	{"name": "walk", "speed": 1.6, "face": Vector3.FORWARD},
 	{"name": "jog", "speed": 4.3, "face": Vector3.FORWARD, "shots": 8, "every": 0.085},
+	# Head-on, because a sideways tilt is invisible from the side.
+	{"name": "jog_front", "speed": 4.3, "face": Vector3.FORWARD, "shots": 4, "every": 0.1, "front": true},
 	{"name": "sprint", "speed": 7.2, "face": Vector3.FORWARD, "shots": 8, "every": 0.075},
 	{"name": "backpedal", "speed": 3.0, "face": Vector3.BACK},
 	{"name": "sidestep", "speed": 2.8, "face": Vector3.LEFT},
@@ -90,6 +92,10 @@ func _process(delta: float) -> void:
 	if at >= GAITS.size():
 		return
 	var gait: Dictionary = GAITS[at]
+	# Head-on for the gaits that ask for it: a sideways tilt is invisible from the side.
+	if gait.get("front", false):
+		camera.global_position = player.global_position + Vector3(0, 1.15, -7.0)
+		camera.look_at(player.global_position + Vector3(0, 0.95, 0))
 	# He travels along -Z, past a camera off to his side. The ground scrolls the other way.
 	var going: Vector3 = Vector3.FORWARD * float(gait.speed)
 	for mark: MeshInstance3D in _marks:

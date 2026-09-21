@@ -59,6 +59,11 @@ var restart_needs_whistle := false
 ## The incident the current stoppage is answering, if any.
 var stopped_for: Incident = null
 var stop_time := 0.0
+## Where the ball was when play stopped. The restart is given when the referee points,
+## which can be several seconds after the whistle, and the ball goes on rolling in the
+## meantime — so a corner or a goal kick worked out from where the ball is *now* is worked
+## out from the wrong place.
+var stopped_ball_at := Vector3.ZERO
 var advantage_for: Incident = null
 var advantage_time := -100.0
 var kick_off_team: Team
@@ -377,6 +382,7 @@ func _on_out(where: Vector3, over_goal_line: bool, in_goal: bool) -> void:
 	var incident := laws.on_out(where, over_goal_line, in_goal)
 	stopped_for = incident
 	stop_time = clock
+	stopped_ball_at = ball.global_position
 	if in_goal:
 		_set_phase(Phase.GOAL)
 		var scoring: Team = incident.details.scoring
@@ -512,6 +518,7 @@ func _stop_play() -> void:
 	var linked := _incident_for_whistle()
 	stopped_for = linked
 	stop_time = clock
+	stopped_ball_at = ball.global_position
 	if linked != null:
 		linked.whistled = true
 		linked.whistle_time = clock
@@ -630,7 +637,9 @@ func award(type: StringName, to: Team) -> void:
 
 
 func _restart_spot(type: StringName, to: Team, linked: Incident) -> Vector3:
-	var where := ball.global_position
+	# Where the ball was when the whistle went, not where it has rolled to since.
+	var ball_was := stopped_ball_at if stopped_ball_at != Vector3.ZERO else ball.global_position
+	var where := ball_was
 	if linked != null:
 		where = linked.position
 		if linked.details.has("spot") and type == linked.expected_restart:
@@ -639,24 +648,29 @@ func _restart_spot(type: StringName, to: Team, linked: Incident) -> Vector3:
 		&"penalty":
 			return spec.penalty_spot(to.attack)
 		&"throw_in":
-			return spec.throw_in_spot(ball.global_position if linked == null else linked.position)
+			return spec.throw_in_spot(ball_was if linked == null else linked.position)
 		&"corner":
 			var end := to.attack
-			return spec.corner_for(ball.global_position, end)
+			return spec.corner_for(ball_was, end)
 		&"goal_kick":
-			return spec.goal_kick_spot(ball.global_position, -to.attack)
+			return spec.goal_kick_spot(ball_was, -to.attack)
 		&"kick_off":
 			return Vector3.ZERO
 		&"indirect_free_kick", &"free_kick":
 			# A free kick to the attacking team inside the goal area is taken from the
 			# goal-area line (Law 13); one to the defenders anywhere in their goal area.
+			# Law 13: from where the offence happened. The one exception is a free kick to
+			# the attacking side inside the goal area, which is taken from the goal-area
+			# line.
 			var p := spec.clamp_to_field(where, 1.0)
 			if spec.in_goal_area(p, to.attack):
 				p.x = spec.goal_line_x(to.attack) - PitchSpec.GOAL_AREA_DEPTH * to.attack
-			# A direct free kick given inside the offender's area is not a penalty unless
-			# the referee says so; if he gives a free kick there, it goes on the edge.
-			if type == &"free_kick" and spec.in_penalty_area(p, to.attack):
-				p.x = spec.goal_line_x(to.attack) - (PitchSpec.PENALTY_AREA_DEPTH + 0.5) * to.attack
+			# It used to move a free kick given inside the penalty area out to the edge of
+			# it, on the grounds that a foul there should have been a penalty. That is true,
+			# and it is the referee's mistake to make: quietly relocating the kick took the
+			# decision off the player and looked, from where he was standing, like the ball
+			# jumping twenty yards for no reason. Give it where he gave it; the assessor
+			# will tell him about it afterwards.
 			return p
 	return spec.clamp_to_field(where, 1.0)
 

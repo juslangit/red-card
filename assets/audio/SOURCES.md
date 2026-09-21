@@ -27,3 +27,5 @@ are cut from them with ffmpeg and saved as 48 kHz 16-bit PCM WAV or Ogg.
 | `crowd/gasp.wav` | The crowd gasping at one the referee did not give | https://freesound.org/people/HowardV/sounds/264376/ |
 | `voices/shout_one.wav` | One player appealing | https://freesound.org/people/metrostock99/sounds/345083/ |
 | `voices/shout_many.wav` | A team appealing together | https://freesound.org/people/khenshom/sounds/527740/ |
+| `trailer/music_open.wav` | Glimmer of hope — electro-orchestral, used under the first minute | https://freesound.org/people/xkeril/sounds/671962/ |
+| `trailer/music_close.flac` | Epic Synth/Orchestral Music — used under the second half | https://freesound.org/people/Bertsz/sounds/545459/ |

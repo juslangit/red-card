@@ -36,3 +36,7 @@ assets/audio/_downloads/
 __pycache__/
 !assets/characters/footballer/footballer_animated_texture_0.png
 !assets/characters/footballer/footballer_animated_texture_0.png.import
+
+# Trailer renders: the scene that makes them is in the repo, the videos are not.
+/dev/trailer/*.avi
+/dev/trailer/*.mp4

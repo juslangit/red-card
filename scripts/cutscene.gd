@@ -33,6 +33,12 @@ var _was_current: Camera3D
 var _shots: Array = []
 var _at := 0
 var _t := 0.0
+## Where the subject of this shot was when the shot began. A camera described relative to
+## somebody who is walking has to be placed when his shot starts, not when the scene was
+## written — the referee walks ten metres during the two shots before his own, and the
+## camera was waiting where he used to be.
+var _origin := Vector3.ZERO
+var _origin_set := false
 var _done: Callable = Callable()
 var _top: ColorRect
 var _bottom: ColorRect
@@ -97,6 +103,7 @@ func play(shots: Array, on_done := Callable(), pause := true) -> void:
 	_shots = shots
 	_at = 0
 	_t = 0.0
+	_origin_set = false
 	_done = on_done
 	_running = true
 	_pausing = pause
@@ -137,6 +144,10 @@ func _process(delta: float) -> void:
 
 func _frame(delta: float) -> void:
 	var shot: Dictionary = _shots[_at]
+	if not _origin_set:
+		_origin_set = true
+		var subject = shot.get("follow")
+		_origin = (subject as Node3D).global_position if subject != null and is_instance_valid(subject) else Vector3.ZERO
 	_t += delta
 	var length: float = float(shot.get("seconds", 3.0))
 	var along: float = clampf(_t / length, 0.0, 1.0)
@@ -144,6 +155,9 @@ func _frame(delta: float) -> void:
 	var eased := ease(along, 0.6)
 	var from: Vector3 = shot.get("from", Vector3(0, 6, 20))
 	var to: Vector3 = shot.get("to", from)
+	if shot.has("offset_from"):
+		from = _origin + (shot.offset_from as Vector3)
+		to = _origin + (shot.get("offset_to", shot.offset_from) as Vector3)
 	_camera.global_position = from.lerp(to, eased)
 	var look_from: Vector3 = shot.get("look", Vector3.ZERO)
 	var look_to: Vector3 = shot.get("look_to", look_from)
@@ -152,6 +166,21 @@ func _frame(delta: float) -> void:
 	if follow != null and is_instance_valid(follow):
 		look_from = (follow as Node3D).global_position + Vector3(0, 1.2, 0)
 		look_to = look_from
+	# Whoever is being filmed turns to the camera. A match poses nobody for a shot — the
+	# players face wherever the football left them — so a scene has to ask, the way a
+	# photographer does. Slightly off dead-on, because square to the lens looks stiff.
+	for who in _subjects(shot):
+		if who == null or not is_instance_valid(who):
+			continue
+		var body := who as Node3D
+		var to_camera := _camera.global_position - body.global_position
+		to_camera.y = 0.0
+		if to_camera.length() < 0.2:
+			continue
+		var facing := to_camera.normalized().rotated(Vector3.UP, deg_to_rad(float(shot.get("face_off", 18.0))))
+		body.transform.basis = Basis.looking_at(facing, Vector3.UP)
+		if body.get("heading") != null:
+			body.set("heading", facing)
 	var target := look_from.lerp(look_to, eased)
 	if _camera.global_position.distance_to(target) > 0.2:
 		_camera.look_at(target, Vector3.UP)
@@ -165,8 +194,17 @@ func _frame(delta: float) -> void:
 	if along >= 1.0:
 		_at += 1
 		_t = 0.0
+		_origin_set = false
 		if _at >= _shots.size():
 			_finish()
+
+
+## The people a shot wants facing the camera: one, several, or nobody.
+func _subjects(shot: Dictionary) -> Array:
+	var face = shot.get("face")
+	if face == null:
+		return []
+	return face if face is Array else [face]
 
 
 func _finish() -> void:

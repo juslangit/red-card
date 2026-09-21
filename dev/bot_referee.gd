@@ -91,7 +91,14 @@ func _physics_process(delta: float) -> void:
 				# Give an assistant the first chance to flag it.
 				if m.clock - inc.time < 0.9:
 					continue
-				_seen[inc] = true
+				# Not "seen" yet. It used to be marked here, before anything was done about
+				# it, and that is what made this check flaky under load: with the drills
+				# running at four times speed on a busy machine, an incident could go from
+				# "too fresh to act on" to "too old to whistle" between two of this bot's
+				# looks. It was then marked dealt with and never looked at again, and the
+				# check reported a missed foul that the referee had never been given a
+				# chance to see. An offence is only finished with when something has
+				# actually been done about it.
 				# A foul where the fouled team is still going: play advantage.
 				if inc.kind == &"foul" and inc.victim != null and inc.victim.state != Footballer.State.FALLEN \
 						and m.ai.possession == inc.victim.team.index:
@@ -102,6 +109,7 @@ func _physics_process(delta: float) -> void:
 					# his to deal with — which is how this bot used to drop one about one
 					# full drill run in ten.
 					if inc.advantage:
+						_seen[inc] = true
 						continue
 				# Anything that must stop, stops — for as long as the match will still link a
 				# whistle to it, rather than for the incident's own few-second window. The
@@ -110,10 +118,15 @@ func _physics_process(delta: float) -> void:
 				# flaky rather than strict. That is what made the advantage and foul drills
 				# fail about one full run in three, always on a different case.
 				if inc.must_stop and m.clock - inc.time < maxf(inc.window, 6.0):
+					_seen[inc] = true
 					_say("whistle for %s" % inc.kind)
 					m.whistle()
 					return
-				_say("let %s go (must_stop %s, %.1f s after)" % [inc.kind, inc.must_stop, m.clock - inc.time])
+				# Either it never needed stopping, or the moment has genuinely gone. Now it
+				# is finished with.
+				if not inc.must_stop or m.clock - inc.time >= maxf(inc.window, 6.0):
+					_seen[inc] = true
+					_say("let %s go (must_stop %s, %.1f s after)" % [inc.kind, inc.must_stop, m.clock - inc.time])
 			# An advantage that did not come is brought back. Law 5 lets the referee play on
 			# and then penalise the original offence if the advantage does not follow within
 			# a few seconds, and a referee who waves play on and then forgets about it is

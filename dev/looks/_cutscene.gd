@@ -64,6 +64,8 @@ func _start() -> void:
 				p.hurry = 0.35
 				p.face_point = Vector3(p.goal.x, 0.0, p.goal.z)
 			ref.global_position = Vector3(-2.0, 0.0, line - 1.0)
+			ref.yaw = PI
+			ref.wish = Vector2(0, -0.34)
 			m.walking_out = true
 			scene.play(Cutscenes.walkout(m, ref), func(): m.walking_out = false, false)
 		"goal":

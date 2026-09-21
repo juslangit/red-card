@@ -150,11 +150,18 @@ func _walk_them_out() -> void:
 		p.hurry = 0.35
 		p.face_point = Vector3(p.goal.x, 0.0, p.goal.z)
 	ref.global_position = Vector3(-2.0, 0.0, line - 1.0)
+	# He walks out with them, at a walk. `scripted` so the keyboard cannot drive him
+	# through his own cutscene.
+	ref.scripted = true
+	ref.yaw = PI if line < 0.0 else 0.0
+	ref.wish = Vector2(0, -0.34)
 	m.walking_out = true
 	cutscene.hud = hud
 	# Not paused: the whole point of the scene is that they are really walking out.
 	cutscene.play(Cutscenes.walkout(m, ref), func():
 		m.walking_out = false
+		ref.wish = Vector2.ZERO
+		ref.scripted = false
 		for p: Footballer in m.players:
 			p.hurry = 0.8
 		ref.global_position = Vector3(-4.0, 0, 12.0)

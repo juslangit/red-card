@@ -28,11 +28,12 @@ static func walkout(m, ref) -> Array:
 		 "look": Vector3(-14.0, 1.2, side - 2.0), "look_to": Vector3(6.0, 1.2, side - 2.0),
 		 "seconds": 3.6, "fov": 44.0,
 		 "caption": "%s v %s" % [m.teams[0].name.to_upper(), m.teams[1].name.to_upper()]},
-		# And you, walking out last, as a referee does. The camera stands on the pitch
-		# side of him: put it on the other side and it films from inside the stand.
-		{"from": ref.global_position + Vector3(2.6, 1.9, 0.0) + _inward(ref) * 4.5,
-		 "to": ref.global_position + Vector3(1.4, 1.7, 0.0) + _inward(ref) * 2.6,
-		 "follow": ref, "seconds": 2.8, "fov": 40.0,
+		# And you, walking out last. The camera waits on the pitch ahead of him and films
+		# him coming on to it: from behind, all anybody saw was the back of a shirt.
+		# Placed off him when his own shot starts, because by then he has walked.
+		{"offset_from": _inward(ref) * 7.5 + Vector3(2.0, 1.7, 0.0),
+		 "offset_to": _inward(ref) * 4.5 + Vector3(1.1, 1.6, 0.0),
+		 "follow": ref, "seconds": 2.8, "fov": 38.0,
 		 "caption": "YOU ARE THE REFEREE"},
 		{"from": Vector3(0, 12.0, 26.0), "to": Vector3(0, 7.0, 18.0),
 		 "look": middle, "seconds": 2.6, "fov": 50.0},
@@ -54,7 +55,7 @@ static func goal(m, scorer) -> Array:
 	return [
 		{"from": where + face * 3.2 + Vector3(0, 1.8, 0),
 		 "to": where + face * 5.0 + Vector3(0, 2.6, 0),
-		 "follow": scorer, "seconds": 2.8, "fov": 34.0, "fov_to": 44.0,
+		 "follow": scorer, "face": scorer, "seconds": 2.8, "fov": 34.0, "fov_to": 44.0,
 		 "caption": "GOAL"},
 	]
 
@@ -66,7 +67,7 @@ static func red_card(m, player) -> Array:
 	var face: Vector3 = player.global_position + player.heading * 3.4 + Vector3(0, 1.7, 0)
 	return [
 		{"from": face, "to": face + player.heading * -0.8 + Vector3(0, 0.1, 0),
-		 "follow": player, "seconds": 2.4, "fov": 34.0, "caption": "OFF"},
+		 "follow": player, "face": player, "seconds": 2.4, "fov": 34.0, "caption": "OFF"},
 	]
 
 
@@ -75,7 +76,7 @@ static func ceremony(m, ref) -> Array:
 	return [
 		{"from": ref.global_position + Vector3(3.0, 2.0, 5.0),
 		 "to": ref.global_position + Vector3(1.5, 1.8, 3.0),
-		 "follow": ref, "seconds": 3.0, "fov": 40.0, "caption": "FULL TIME"},
+		 "follow": ref, "face": ref.body, "seconds": 3.0, "fov": 40.0, "caption": "FULL TIME"},
 		{"from": Vector3(0, 6.0, 20.0), "to": Vector3(0, 22.0, 46.0),
 		 "look": Vector3(0, 1.0, 0), "seconds": 4.2, "fov": 46.0, "fov_to": 54.0,
 		 "caption": "THE CUP FINAL, REFEREED"},

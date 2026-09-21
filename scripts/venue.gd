@@ -226,9 +226,26 @@ func _sky_and_light() -> void:
 	var up := Vector3.UP if absf(from_sun.y) < 0.98 else Vector3.FORWARD
 	sun.transform = Transform3D(Basis.looking_at(-from_sun, up), Vector3.ZERO)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 1.0
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.ssao_enabled = false
+	# Ambient at full strength is the other half of "it looks flat": light arriving evenly
+	# from every direction is light that describes no shape at all. Turned down, the sun
+	# does more of the work and everything on the pitch gets a lit side and a shaded one.
+	env.ambient_light_energy = 0.62
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	# Ambient occlusion: the contact shadow where a boot meets the grass, under the
+	# crossbar, in the folds of a crowd. Without it everything appears to hover a
+	# centimetre off the ground, which is most of what "it looks flat" means.
+	# ...but not at the National Stadium. Measured on an M2: the three smaller grounds run
+	# at over a hundred frames a second with it on, and the stadium — four thousand
+	# spectators and the heaviest scene in the game — drops from the high fifties to the
+	# high thirties. A referee never gets close enough to that crowd to miss the effect,
+	# and a dropped frame on a big occasion is far more noticeable than a soft contact
+	# shadow.
+	env.ssao_enabled = level.crowd < 4000
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 2.2
+	env.ssao_power = 1.6
+	env.ssao_detail = 0.6
+	env.ssao_light_affect = 0.25
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.fog_enabled = true
@@ -239,16 +256,16 @@ func _sky_and_light() -> void:
 
 	match level.time:
 		"afternoon":
-			sun.light_energy = 1.5
+			sun.light_energy = 2.1
 			env.tonemap_exposure = 0.85
 			env.fog_light_color = Color(0.72, 0.8, 0.88)
 		"evening":
-			sun.light_energy = 1.1
+			sun.light_energy = 1.7
 			env.tonemap_exposure = 0.78
 			sun.light_color = Color(1.0, 0.88, 0.72)
 			env.fog_light_color = Color(0.85, 0.7, 0.55)
 		"dusk":
-			sun.light_energy = 0.7
+			sun.light_energy = 1.1
 			sun.light_color = Color(0.85, 0.88, 1.0)
 			env.tonemap_exposure = 0.8
 			sun.light_color = Color(0.95, 0.95, 1.0)
@@ -256,10 +273,10 @@ func _sky_and_light() -> void:
 		_:
 			# Night: the floodlights are the sun, high and white, and the sky is a real
 			# starfield with no sun in it.
-			sun.light_energy = 1.3
-			env.tonemap_exposure = 1.1
+			sun.light_energy = 1.9
+			env.tonemap_exposure = 1.25
 			sun.light_color = Color(0.96, 0.97, 1.0)
-			env.ambient_light_energy = 0.35
+			env.ambient_light_energy = 0.28
 			env.fog_light_color = Color(0.08, 0.09, 0.12)
 	add_child(sun)
 	environment = WorldEnvironment.new()

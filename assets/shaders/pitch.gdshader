@@ -106,7 +106,23 @@ void fragment() {
 	float bald = clamp((goalmouth + spine) * wear * (0.6 + 0.8 * noise(p * 0.6)), 0.0, 1.0);
 	grass = mix(grass, vec3(0.42, 0.36, 0.25), bald * 0.8);
 
+	// The sheen. A mown pitch is not two greens: it is one grass bent two ways, and each
+	// stripe is light or dark depending on whether you are looking with the lie of it or
+	// against. That is why stripes on television change as the camera moves round the
+	// ground, and why painting them as flat colours reads as lino.
+	vec3 eye = INV_VIEW_MATRIX[3].xyz;
+	vec3 to_eye = normalize(eye - world);
+	vec2 lie = vec2(s > 0.5 ? 1.0 : -1.0, 0.0);
+	float with_the_lie = dot(normalize(to_eye.xz + vec2(1e-5)), lie);
+	grass *= 1.0 + 0.16 * with_the_lie;
+
+	// A first version also bent the normal with four more noise lookups per pixel, for a
+	// shimmer nobody could see from head height — and the pitch is most of the screen, so
+	// it cost a third of the frame rate at the National Stadium. The sheen above does the
+	// same job for one dot product.
+
 	ALBEDO = mix(grass, vec3(0.95), paint * (1.0 - bald * 0.5));
-	ROUGHNESS = 0.95;
-	SPECULAR = 0.2;
+	// Grass scatters; paint does not. Worn earth is duller than either.
+	ROUGHNESS = mix(mix(0.94, 0.88, n), 0.7, paint) + bald * 0.05;
+	SPECULAR = mix(0.28, 0.45, paint) * (1.0 - bald * 0.6);
 }

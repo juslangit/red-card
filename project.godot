@@ -34,3 +34,10 @@ window/stretch/aspect="expand"
 textures/vram_compression/import_etc2_astc=true
 scaling_3d/scale=0.8
 anti_aliasing/quality/screen_space_aa=1
+; Ambient occlusion is what stops everything on the pitch looking like it hovers a
+; centimetre above it, but at the default quality it cost a third of the frame rate at the
+; National Stadium — 60 fps down to the high forties. At half resolution and low quality it
+; costs almost nothing and, at the distance a referee stands from the grass, looks the same.
+environment/ssao/quality=0
+environment/ssao/half_size=true
+environment/ssao/adaptive_target=0.3

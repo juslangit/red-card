@@ -202,5 +202,10 @@ void fragment() {
 	}
 	ALBEDO = shown * mix(1.0, OWN_BODY_DIM, step(0.5, hide_head));
 	ROUGHNESS = max(rough, step(0.5, hide_head));
+	// A rim of the sky down the edge of every player, which is what stops twenty-two of
+	// them reading as cut-outs against a green field. Shirts catch more of it than skin.
+	RIM = mix(0.25, 0.55, shirt);
+	RIM_TINT = 0.35;
+	SPECULAR = mix(0.2, 0.42, shirt + boot);
 	EMISSION = vec3(highlight) * vec3(1.0, 0.85, 0.3);
 }

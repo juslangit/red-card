@@ -32,6 +32,7 @@ PROJECT = os.path.dirname(os.path.dirname(HERE))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
+import gerak_clips  # noqa: E402
 from badminton_clips import BONES, FPS, MOVE  # noqa: E402
 from badminton_clips import CLIPS as BADMINTON_CLIPS  # noqa: E402
 from volleyball_clips import CLIPS as VOLLEYBALL_CLIPS  # noqa: E402
@@ -382,6 +383,10 @@ SPRINT_LEAN = 5.0
 # bending those further is what folds the legs up underneath him.
 SPRINT_BONES = ["LeftUpLeg", "RightUpLeg", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm"]
 
+# None of the four numbers above apply to a run keyed by hand in gerak: that clip is
+# shipped as it was saved, and a sprint is it played faster. They are still what Meshy's
+# own run needs, and are used whenever there is no keyed clip for a character.
+
 
 def amplify(action, new_name, bones, factor, lean_degrees=0.0, rig=None):
     """A copy of a clip with every rotation on `bones` opened up by `factor`.
@@ -454,8 +459,27 @@ def forge(name):
     print(f"forging {name}")
 
     steal_animation(name, "_walking", "walk", rig)
-    running = steal_animation(name, "_running", "run", rig)
-    if running is not None:
+
+    # A run keyed by hand in gerak wins over Meshy's, and over everything built on top of
+    # it. Every clip a player runs in is then the one Luqman keyed, unchanged: `run` is
+    # his cycle as he left it and `fb_run` and `fb_sprint` are the same thing under the
+    # names the game asks for, a sprint being that cycle played faster.
+    #
+    # Nothing is amplified on the way. The three passes below exist to rescue Meshy's jog
+    # — its arms hang by its sides and its back is bolt upright — and Luqman keyed this
+    # one knowing that, on 2026-09-23, choosing to leave the upper body as it stands. A
+    # clip somebody has opened in gerak and saved is a decision, not a starting point, so
+    # the forge ships what is in the file.
+    keyed = gerak_clips.path_for(name, "run")
+    if keyed is not None:
+        running = gerak_clips.build(rig, keyed, "run", source(name, "_animated"))
+        for borrowed in ("fb_run", "fb_sprint"):
+            copy = running.copy()
+            copy.name = borrowed
+            copy.use_fake_user = True
+    else:
+        running = steal_animation(name, "_running", "run", rig)
+    if running is not None and keyed is None:
         # Three passes: the shoulders open a long way, the elbows a little, the thighs
         # less again, and the whole body tips forward at the end of it.
         shoulders = amplify(running, "fb_run_shoulders", RUN_UPPER_ARMS, RUN_ARM_SWING)

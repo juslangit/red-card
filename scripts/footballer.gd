@@ -61,7 +61,13 @@ const CLIPS := {
 ## per cent of the time (0.6 m/s), and its shuffle swung one 10 cm and never lifted it at
 ## all (0.3 m/s), under players travelling at three and four. Both are written by hand now
 ## in tools/meshy/football_clips.py and measured like the rest.
-const CLIP_SPEED := {"walk": 1.58, "run": 3.04, "sprint": 3.98, "backpedal": 2.65, "shuffle": 1.66}
+##
+## Running, sprinting and the base `run` are all one clip since 2026-09-23 — the one
+## Luqman keyed by hand in gerak and asked to be shipped as he saved it — so all three
+## measure the same 0.94 m stride. A sprint is that cycle played faster, which is what
+## the rate below is for; it reaches the top of its clamp at about 5.1 m/s rather than
+## carrying its own longer stride the way the amplified `fb_sprint` used to.
+const CLIP_SPEED := {"walk": 1.58, "run": 2.82, "sprint": 2.82, "backpedal": 2.65, "shuffle": 1.66}
 ## As fast as a body can go on its heels or sideways before it has to turn and run. A
 ## defender backing off does exactly this: he holds his ground facing the ball for as long
 ## as he can, and when the attacker goes past that he turns and chases. Leaving it out is

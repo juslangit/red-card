@@ -40,3 +40,6 @@ __pycache__/
 # Trailer renders: the scene that makes them is in the repo, the videos are not.
 /dev/trailer/*.avi
 /dev/trailer/*.mp4
+
+# Project record: built locally, never committed (it holds session logs)
+docs/index.html

@@ -36,3 +36,6 @@ assets/audio/_downloads/
 __pycache__/
 !assets/characters/footballer/footballer_animated_texture_0.png
 !assets/characters/footballer/footballer_animated_texture_0.png.import
+
+# Project record: built locally, never committed (it holds session logs)
+docs/index.html

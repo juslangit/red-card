@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "footballer_animated-run",
- "model": "/Users/juslangit/Desktop/project/game/red-card/assets/characters/footballer/footballer_animated.glb",
+ "model": "/Users/luqman/Desktop/projects/game/red-card/assets/characters/footballer/footballer_animated.glb",
  "fps": 24,
  "frames": 16,
  "interp": "linear",

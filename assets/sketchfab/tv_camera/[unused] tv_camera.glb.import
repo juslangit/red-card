@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://beq0oh7u6r5ea"
-path="res://.godot/imported/tv_camera.glb-e5ab4f24529f5076c8194fe1718fbae5.scn"
+path="res://.godot/imported/[unused] tv_camera.glb-2ff53a537d93262e48a4829b8a3b3219.scn"
 
 [deps]
 
-source_file="res://assets/sketchfab/tv_camera/tv_camera.glb"
-dest_files=["res://.godot/imported/tv_camera.glb-e5ab4f24529f5076c8194fe1718fbae5.scn"]
+source_file="res://assets/sketchfab/tv_camera/[unused] tv_camera.glb"
+dest_files=["res://.godot/imported/[unused] tv_camera.glb-2ff53a537d93262e48a4829b8a3b3219.scn"]
 
 [params]
 

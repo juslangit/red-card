@@ -1,6 +1,6 @@
 """Puts a clip keyed by hand in gerak onto the Meshy rig.
 
-gerak (`~/Desktop/project/3d/bengkel/gerak`, one of bengkel's tools) poses this same
+gerak (`~/Desktop/projects/3d/bengkel/gerak`, one of bengkel's tools) poses this same
 character in the browser and saves the result to `~/Documents/gerak/clips/<name>.json`.
 A clip so saved is copied into `clips/` here, so the forge rebuilds from the repository
 rather than from whatever happens to be in the home folder.
